@@ -1,0 +1,6 @@
+semver
+requests
+ruamel.yaml
+pygithub
+pbxproj
+inquirer
