@@ -3,6 +3,7 @@ import plistlib
 import shutil
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
@@ -46,7 +47,7 @@ class PreparePersonalDeviceTests(unittest.TestCase):
                     "name": "Client",
                     "buildConfigurationList": "CONFIGS",
                     "dependencies": ["DEP_EXT", "DEP_STICKER", "DEP_MESSAGES"],
-                    "buildPhases": ["APP_PHASE", "EXT_PHASE"],
+                    "buildPhases": ["APP_PHASE", "EXT_PHASE", "LINT_PHASE"],
                 },
                 "EXT": {"isa": "PBXNativeTarget", "name": "Extension", "productType": extension_types[0]},
                 "STICKER": {"isa": "PBXNativeTarget", "name": "Sticker", "productType": extension_types[1]},
@@ -56,9 +57,12 @@ class PreparePersonalDeviceTests(unittest.TestCase):
                 "DEP_MESSAGES": {"isa": "PBXTargetDependency", "target": "MESSAGES"},
                 "APP_PHASE": {"isa": "PBXResourcesBuildPhase", "name": "Resources"},
                 "EXT_PHASE": {"isa": "PBXCopyFilesBuildPhase", "name": "Embed App Extensions"},
+                "LINT_PHASE": {"isa": "PBXShellScriptBuildPhase", "name": "Swiftlint"},
                 "CONFIGS": {"isa": "XCConfigurationList", "buildConfigurations": ["DEBUG", "RELEASE"]},
                 "DEBUG": {"isa": "XCBuildConfiguration", "name": "Debug", "buildSettings": {}},
-                "RELEASE": {"isa": "XCBuildConfiguration", "name": "Release", "buildSettings": {}},
+                "RELEASE": {"isa": "XCBuildConfiguration", "name": "Firefox", "buildSettings": {
+                    "SWIFT_ACTIVE_COMPILATION_CONDITIONS": "MOZ_CHANNEL_RELEASE",
+                }},
             }
             (source / "project.pbxproj").write_bytes(
                 plistlib.dumps({"objects": objects, "rootObject": "PROJECT"})
@@ -67,7 +71,7 @@ class PreparePersonalDeviceTests(unittest.TestCase):
                 plistlib.dumps({"CFBundleIdentifier": "org.mozilla.ios.Fennec"})
             )
             scheme = """<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<Scheme><BuildableReference ReferencedContainer=\"container:Client.xcodeproj\"/><BuildableReference ReferencedContainer=\"container:../BrowserKit.xcodeproj\"/></Scheme>
+<Scheme><BuildableReference ReferencedContainer=\"container:Client.xcodeproj\"/><BuildableReference ReferencedContainer=\"container:../BrowserKit.xcodeproj\"/><ArchiveAction buildConfiguration=\"Debug\"><PreActions><ExecutionAction/></PreActions></ArchiveAction></Scheme>
 """
             (scheme_dir / "Fennec.xcscheme").write_text(scheme)
             original_project = (source / "project.pbxproj").read_bytes()
@@ -80,7 +84,7 @@ class PreparePersonalDeviceTests(unittest.TestCase):
             objects = generated["objects"]
             client = next(obj for obj in objects.values() if obj.get("name") == "Client")
             self.assertEqual(client["dependencies"], [])
-            self.assertEqual(client["buildPhases"], ["APP_PHASE"])
+            self.assertEqual(client["buildPhases"], ["APP_PHASE", "LINT_PHASE"])
             self.assertEqual(objects["DEBUG"]["buildSettings"]["MOZ_BUNDLE_DISPLAY_NAME"], "FFox fork dev")
             self.assertEqual(objects["DEBUG"]["buildSettings"]["PRODUCT_BUNDLE_IDENTIFIER"], "com.example.ffox.dev")
             self.assertEqual(plistlib.loads((project.parent / "Info.plist").read_bytes())["ZenPersonalTeam"], True)
@@ -88,6 +92,21 @@ class PreparePersonalDeviceTests(unittest.TestCase):
             rewritten_scheme = (project / "xcshareddata" / "xcschemes" / "Fennec.xcscheme").read_text()
             self.assertIn(f"container:{project}", rewritten_scheme)
             self.assertIn(f"container:{(root / 'BrowserKit.xcodeproj').resolve()}", rewritten_scheme)
+
+            project = generator.prepare("ABCDE12345", "com.example.ffox.dev", configuration="Release")
+            objects = plistlib.loads((project / "project.pbxproj").read_bytes())["objects"]
+            self.assertEqual(objects["CLIENT"]["buildPhases"], ["APP_PHASE"])
+            release = next(obj for obj in objects.values()
+                           if obj.get("isa") == "XCBuildConfiguration" and obj.get("name") == "Release")
+            settings = release["buildSettings"]
+            self.assertEqual(settings["PRODUCT_BUNDLE_IDENTIFIER"], "com.example.ffox.dev")
+            self.assertEqual(settings["SWIFT_OPTIMIZATION_LEVEL"], "-O")
+            self.assertEqual(settings["SWIFT_ACTIVE_COMPILATION_CONDITIONS"], "MOZ_CHANNEL_RELEASE")
+            self.assertEqual(settings["ENABLE_TESTABILITY"], "NO")
+            archive = ET.parse(project / "xcshareddata/xcschemes/Fennec.xcscheme").find("ArchiveAction")
+            self.assertEqual(archive.get("buildConfiguration"), "Release")
+            self.assertIsNone(archive.find("PreActions"))
+            self.assertEqual(original_project, (source / "project.pbxproj").read_bytes())
 
 
 if __name__ == "__main__":

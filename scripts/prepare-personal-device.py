@@ -2,6 +2,8 @@
 """Prepare an isolated, app-only Xcode project for Personal Team device builds."""
 
 import argparse
+import copy
+import hashlib
 import json
 import plistlib
 import re
@@ -11,11 +13,13 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 
 
-def prepare(team: str, bundle_id: str) -> Path:
+def prepare(team: str, bundle_id: str, configuration: str = "Debug") -> Path:
     if not re.fullmatch(r"[A-Z0-9]{10}", team):
         raise ValueError("Expected a 10-character Apple development team ID")
     if not re.fullmatch(r"[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+", bundle_id):
         raise ValueError("Expected a reverse-domain bundle identifier")
+    if configuration not in ("Debug", "Release"):
+        raise ValueError("Expected Debug or Release configuration")
 
     root = Path(__file__).resolve().parent.parent
     app_root = root / "firefox-ios"
@@ -27,6 +31,24 @@ def prepare(team: str, bundle_id: str) -> Path:
         "plutil", "-convert", "json", "-o", "-", str(source / "project.pbxproj")
     ]))
     objects = data["objects"]
+    if configuration == "Release":
+        for key, obj in list(objects.items()):
+            if obj["isa"] != "XCConfigurationList":
+                continue
+            configs = obj["buildConfigurations"]
+            if any(objects[config]["name"] == "Release" for config in configs):
+                continue
+            base = next((config for config in configs if objects[config]["name"] == "Firefox"),
+                        next(config for config in configs if objects[config]["name"] == "Debug"))
+            release_key = hashlib.sha256(f"fork-release-{key}".encode()).hexdigest()[:24].upper()
+            objects[release_key] = copy.deepcopy(objects[base])
+            objects[release_key]["name"] = "Release"
+            objects[release_key]["buildSettings"].update({
+                "SWIFT_OPTIMIZATION_LEVEL": "-O",
+                "SWIFT_COMPILATION_MODE": "wholemodule",
+                "ENABLE_TESTABILITY": "NO",
+            })
+            configs.append(release_key)
     objects[data["rootObject"]]["projectDirPath"] = str(app_root)
     client = next(obj for obj in objects.values()
                   if obj["isa"] == "PBXNativeTarget" and obj["name"] == "Client")
@@ -35,7 +57,9 @@ def prepare(team: str, bundle_id: str) -> Path:
     client["dependencies"] = [key for key in client["dependencies"]
                               if objects[key].get("target") not in extensions]
     client["buildPhases"] = [key for key in client["buildPhases"]
-                             if objects[key].get("name") != "Embed App Extensions"]
+                             if objects[key].get("name") != "Embed App Extensions"
+                             and not (configuration == "Release"
+                                      and objects[key].get("name") == "Swiftlint")]
 
     info = plistlib.loads((app_root / "Client" / "Info.plist").read_bytes())
     info["ZenPersonalTeam"] = True
@@ -47,7 +71,7 @@ def prepare(team: str, bundle_id: str) -> Path:
     }))
     configurations = objects[client["buildConfigurationList"]]["buildConfigurations"]
     for key in configurations:
-        if objects[key]["name"] != "Debug":
+        if objects[key]["name"] != configuration:
             continue
         objects[key]["buildSettings"].update({
             "CODE_SIGN_ENTITLEMENTS": str(entitlements),
@@ -63,6 +87,12 @@ def prepare(team: str, bundle_id: str) -> Path:
 
     scheme_path = project / "xcshareddata" / "xcschemes" / "Fennec.xcscheme"
     scheme = ET.parse(scheme_path)
+    if configuration == "Release":
+        archive = scheme.find("ArchiveAction")
+        if archive is not None:
+            archive.set("buildConfiguration", "Release")
+            for actions in archive.findall("PreActions"):
+                archive.remove(actions)
     for reference in scheme.findall(".//BuildableReference"):
         container = reference.get("ReferencedContainer", "")
         if container == "container:Client.xcodeproj":
@@ -77,5 +107,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--team", required=True)
     parser.add_argument("--bundle-id", required=True)
+    parser.add_argument("--configuration", choices=("Debug", "Release"), default="Debug")
     args = parser.parse_args()
-    print(prepare(args.team, args.bundle_id))
+    print(prepare(args.team, args.bundle_id, args.configuration))

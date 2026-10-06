@@ -1,0 +1,95 @@
+name: michft fork CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scripts:
+    if: github.repository == 'michft/zen-fork'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test deployment and release validation
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_deploy_device.py'
+          python3 -m unittest discover -s scripts -p 'test_release_ios.py'
+          python3 -m unittest discover -s scripts -p 'test_prepare_ci_dependencies.py'
+
+  universal-build:
+    if: github.repository == 'michft/zen-fork'
+    needs: scripts
+    runs-on: xcode-27
+    timeout-minutes: 90
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+      IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID || 'PP97C35JA7' }}
+      IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID || 'net.mich431.ffoxfork.dev' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: '11.22.0'
+      - name: Prepare pinned build tools
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          pnpm install --frozen-lockfile
+          python3 - <<'PY'
+          import json, os, pathlib, re
+          manifest = json.loads(pathlib.Path('ci/dependencies.json').read_text())
+          fields = {'release': r'build-deps-\d{4}-\d{2}-\d{2}', 'asset': r'ffox-ci-dependencies-\d{8}\.tar\.gz', 'sha256': r'[a-f0-9]{64}'}
+          with open(os.environ['GITHUB_ENV'], 'a') as env:
+              for key, pattern in fields.items():
+                  value = manifest.get(key, '')
+                  if not isinstance(value, str) or not re.fullmatch(pattern, value):
+                      raise SystemExit(f'Invalid dependency {key}.')
+                  env.write(f'CI_DEPENDENCY_{key.upper()}={value}\n')
+          PY
+      - name: Restore michft-hosted dependency snapshot
+        run: |
+          set -euo pipefail
+          ARCHIVE="$RUNNER_TEMP/$CI_DEPENDENCY_ASSET"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --retry 3 \
+            "https://github.com/michft/zen-fork/releases/download/$CI_DEPENDENCY_RELEASE/$CI_DEPENDENCY_ASSET" \
+            --output "$ARCHIVE"
+          printf '%s  %s\n' "$CI_DEPENDENCY_SHA256" "$ARCHIVE" | shasum -a 256 --check
+          python3 scripts/prepare-ci-dependencies.py --archive "$ARCHIVE"
+          cp scripts/nimbus-fml-offline.sh firefox-ios/bin/nimbus-fml.sh
+      - name: Test project preparation
+        run: python3 -m unittest discover -s scripts -p 'test_prepare_personal_device.py'
+      - name: Archive universal unsigned Release app
+        run: |
+          python3 scripts/release-ios.py \
+            --version "$(cat VERSION)" --build-number "$GITHUB_RUN_NUMBER" \
+            --team "$IOS_TEAM_ID" --bundle-id "$IOS_BUNDLE_ID" \
+            --output .build/release --unsigned
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: universal-unsigned-${{ github.run_id }}
+          path: |
+            .build/release/*.zip
+            .build/release/SHA256SUMS
+            .build/release/build-info.json
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
