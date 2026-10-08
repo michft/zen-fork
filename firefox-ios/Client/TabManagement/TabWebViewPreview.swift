@@ -35,12 +35,12 @@ final class TabWebViewPreview: UIView, ThemeApplicable {
     // MARK: - Layout
     private func setupLayout() {
         layer.shadowRadius = UX.backgroundShadowCornerRadius
-        applyScreenCornerRadius()
+        applyPreviewCornerRadius()
         layer.shadowOpacity = UX.backgroundShadowOpacity
         layer.shadowOffset = UX.backgroundShadowOffset
         layer.masksToBounds = false
 
-        webPageScreenshotImageView.applyScreenCornerRadius()
+        webPageScreenshotImageView.applyPreviewCornerRadius()
         addSubviews(webPageScreenshotImageView, faviconImageView)
 
         NSLayoutConstraint.activate([

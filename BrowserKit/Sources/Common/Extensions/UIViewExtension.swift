@@ -83,9 +83,9 @@ extension UIView {
         layer.shadowOpacity = shadow.opacity
     }
 
-    /// Sets the corner radius to the devices current corner radius
-    public func applyScreenCornerRadius() {
-        // TODO: FXIOS-14817 FXIOS-16327 Centralize a way to query device corner radius without the private api
-        layer.cornerRadius = UIScreen.main.value(forKey: "_displayCornerRadius") as? CGFloat ?? 0
+    /// Applies rounded corners for screen preview animations.
+    public func applyPreviewCornerRadius() {
+        layer.cornerCurve = .continuous
+        layer.cornerRadius = 20
     }
 }

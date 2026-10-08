@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add App Store Connect exports and michft-only TestFlight upload CI.
+- Replace identified private UIKit/WebKit API access with public APIs.
+- Use continuous 20pt corners for tab previews instead of querying private hardware geometry.
 - Add michft-only public CI and universal unsigned iPhone/iPad build artifacts.
 - Add paid-team manual signing and `ffox-vMAJOR.MINOR.PATCH` GitHub Releases.
 - Restore pinned build dependencies from michft assets without upstream build downloads.

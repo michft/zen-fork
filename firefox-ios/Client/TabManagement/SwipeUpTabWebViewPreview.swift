@@ -38,12 +38,12 @@ class SwipeUpTabWebViewPreview: UIView, ThemeApplicable {
     private let tabBackgroundHover: UIView = .build()
     private let screenshotViewContainer: UIView = .build {
         $0.layer.masksToBounds = false
-        $0.applyScreenCornerRadius()
+        $0.applyPreviewCornerRadius()
     }
     private let screenshotView: UIImageView = .build {
         $0.contentMode = .top
         $0.clipsToBounds = true
-        $0.applyScreenCornerRadius()
+        $0.applyPreviewCornerRadius()
     }
     private let closeButton: UIButton = .build {
         if #available(iOS 26, *) {
@@ -129,7 +129,7 @@ class SwipeUpTabWebViewPreview: UIView, ThemeApplicable {
         UIView.animate(withDuration: UX.initialTransformDuration) { [self] in
             alpha = 1.0
             layer.zPosition = 1000
-            screenshotView.applyScreenCornerRadius()
+            screenshotView.applyPreviewCornerRadius()
             guard screenshotViewContainerTopConstraint?.constant != topPadding ||
                   screenshotViewContainerBottomConstraint?.constant != bottomPadding else { return }
             screenshotViewContainerTopConstraint?.constant = topPadding

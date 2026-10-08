@@ -1,13 +1,14 @@
 # michft GitHub builds and releases
 
 Public repository: [michft/zen-fork](https://github.com/michft/zen-fork).
+For Apple beta distribution and automatic device updates, see [TestFlight setup](testflight.md).
 This repository is independent of Mozilla's GitHub fork network and CI services.
 Its initial public commit is a source snapshot with existing licenses and attribution;
 the original local JJ history remains available in the local checkout.
 
 ## CI scope and runner limits
 
-Only `fork-ci.yml` and `release-ios.yml` run here. Inherited Mozilla workflow
+Only `fork-ci.yml`, `release-ios.yml`, and `testflight.yml` run here. Inherited Mozilla workflow
 automation is removed and disabled in GitHub. CODEOWNERS is `@michft`; issue and
 PR templates address this fork. CI opens no upstream PRs, comments, review requests,
 or tickets and invokes no Mozilla Taskcluster/Bitrise jobs.

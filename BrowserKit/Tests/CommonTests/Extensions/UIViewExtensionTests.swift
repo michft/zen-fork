@@ -7,6 +7,19 @@ import XCTest
 
 @MainActor
 final class UIViewExtensionTests: XCTestCase {
+    func test_previewCornerRadius_canBeResetDuringAnimation() {
+        let view = UIView()
+        view.applyPreviewCornerRadius()
+
+        XCTAssertEqual(view.layer.cornerCurve, .continuous)
+        XCTAssertEqual(view.layer.cornerRadius, 20)
+
+        view.layer.cornerRadius = 0
+        XCTAssertEqual(view.layer.cornerRadius, 0)
+        view.applyPreviewCornerRadius()
+        XCTAssertEqual(view.layer.cornerRadius, 20)
+    }
+
     final class CustomView: UIView {
         var customProperty: String
 

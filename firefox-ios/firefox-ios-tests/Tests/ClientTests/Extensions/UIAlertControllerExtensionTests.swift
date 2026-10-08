@@ -4,11 +4,22 @@
 
 import UIKit
 import XCTest
+import Shared
 
 @testable import Client
 
 @MainActor
 final class UIAlertControllerExtensionTests: XCTestCase {
+    func testAlertActionRetainsAccessibilityIdentifierBeforePresentation() {
+        let alert = AlertController(title: nil, message: nil, preferredStyle: .alert)
+        let action = UIAlertAction(title: "Confirm", style: .default)
+
+        alert.addAction(action, accessibilityIdentifier: "confirm-action")
+
+        XCTAssertTrue(alert.actions.first === action)
+        XCTAssertEqual(action.accessibilityIdentifier, "confirm-action")
+    }
+
     func testAddShortcutAlertEnablesSaveButtonForValidURL() throws {
         let alert = UIAlertController.addShortcutAlert { _ in }
 

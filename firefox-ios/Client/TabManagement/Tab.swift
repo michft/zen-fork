@@ -467,7 +467,7 @@ class Tab: NSObject,
 
     var pageZoom: CGFloat = 1.0 {
         didSet {
-            webView?.setValue(pageZoom, forKey: "viewScale")
+            webView?.pageZoom = pageZoom
         }
     }
 

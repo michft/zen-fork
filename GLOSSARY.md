@@ -11,3 +11,5 @@
 - **Dependency snapshot**: Immutable, checked CI cache hosted by michft, containing
   public dependency sources, binary artifacts, and build tools; no signing credentials.
 - **Signing expiry**: Earlier of actual signing certificate and provisioning profile expiry.
+- **TestFlight build**: App Store Connect distribution build available to invited testers
+  for up to 90 days, independently of development-profile expiry.

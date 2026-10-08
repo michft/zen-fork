@@ -51,10 +51,7 @@ class ToolbarTextField: AutocompleteTextField {
                 tintedClearImage = image
             }
         }
-        // Since we're unable to change the tint color of the clear image, we need to iterate through the
-        // subviews, find the clear button, and tint it ourselves.
-        // https://stackoverflow.com/questions/55046917/clear-button-on-text-field-not-accessible-with-voice-over-swift
-        if let clearButton = value(forKey: "_clearButton") as? UIButton {
+        if let clearButton = subviews.compactMap({ $0 as? UIButton }).first(where: { $0 !== rightView }) {
             clearButton.setImage(tintedClearImage, for: [])
         }
     }

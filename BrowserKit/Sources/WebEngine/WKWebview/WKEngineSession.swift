@@ -292,9 +292,8 @@ class WKEngineSession: NSObject,
     }
 
     func updatePageZoom(_ change: ZoomChangeValue) {
-        let zoomKey = "viewScale"
         let stepAmt = ZoomChangeValue.defaultStepIncrease
-        let currentZoom = (webView.value(forKey: zoomKey) as? CGFloat) ?? 1.0
+        let currentZoom = webView.pageZoom
         let newZoom: CGFloat
 
         switch change {
@@ -307,7 +306,7 @@ class WKEngineSession: NSObject,
         case .set(let value):
             newZoom = value
         }
-        webView.setValue(newZoom, forKey: zoomKey)
+        webView.pageZoom = newZoom
     }
 
     func viewPrintFormatter() -> UIPrintFormatter {
