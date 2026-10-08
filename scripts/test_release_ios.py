@@ -70,6 +70,9 @@ class ReleaseIOSTests(unittest.TestCase):
             app = archive / "Products/Applications/Client.app"
             app.mkdir(parents=True)
             (app / "Info.plist").write_bytes(plistlib.dumps(self.info))
+            symbols = archive / "dSYMs/Client.app.dSYM/Contents/Resources/DWARF"
+            symbols.mkdir(parents=True)
+            (symbols / "Client").write_bytes(b"debug symbols")
         elif command[:2] == ["xcodebuild", "-exportArchive"]:
             exported = Path(command[command.index("-exportPath") + 1])
             exported.mkdir()
@@ -144,6 +147,78 @@ class ReleaseIOSTests(unittest.TestCase):
         archive = next(command for command in self.calls if "archive" in command)
         for setting in ("PROVISIONING_PROFILE_SPECIFIER=", "CODE_SIGN_STYLE=", "CODE_SIGN_IDENTITY="):
             self.assertFalse(any(argument.startswith(setting) for argument in archive))
+
+    def app_store_profile(self):
+        profile = {key: value for key, value in self.profile.items() if key != "ProvisionedDevices"}
+        profile["Entitlements"] = {**self.profile["Entitlements"],
+                                   "application-identifier": "PP97C35JA7.net.mich431.ffoxfork.dev",
+                                   "get-task-allow": False, "beta-reports-active": True}
+        return profile
+
+    def test_app_store_exports_testflight_ipa_and_symbols_with_correct_metadata(self):
+        self.profile = self.app_store_profile()
+        self.info["CFBundleVersion"] = "42.1"
+        self.release(self.args(signed=True, extra=["--method", "app-store-connect", "--build-number", "42.1"]))
+        self.assertEqual(self.export_options["method"], "app-store-connect")
+        self.assertEqual(self.export_options["destination"], "export")
+        self.assertTrue(self.export_options["uploadSymbols"])
+        self.assertNotIn("thinning", self.export_options)
+        metadata = json.loads((self.output / "build-info.json").read_text())
+        self.assertEqual(metadata["installation"], "app-store-connect")
+        self.assertEqual(metadata["signing"], "app-store-connect")
+        self.assertEqual(metadata["buildNumber"], "42.1")
+        self.assertEqual(sum(command[:2] == ["codesign", "--verify"] for command in self.calls), 2)
+        self.assertEqual(set(path.name for path in self.output.iterdir()),
+                         {"FFox-0.1.0-ios-ipados.ipa", "FFox-0.1.0-ios-ipados-dSYMs.zip", "SHA256SUMS", "build-info.json"})
+        objects = plistlib.loads((self.project / "project.pbxproj").read_bytes())["objects"]
+        self.assertEqual(objects["client-release"]["buildSettings"]["DEBUG_INFORMATION_FORMAT"], "dwarf-with-dsym")
+        for private in ("private-device-id", self.identity, self.profile["UUID"]):
+            self.assertNotIn(private, json.dumps(metadata))
+        self.check_checksums()
+
+    def test_app_store_profiles_require_explicit_id_beta_entitlement_and_no_device_fields(self):
+        args = self.args(signed=True, extra=["--method", "app-store-connect"])
+        profile = self.app_store_profile()
+        self.helper.validate_profile(profile, args)
+        invalid = []
+        for entitlements in ({"application-identifier": "PP97C35JA7.*"},
+                             {"application-identifier": "PP97C35JA7.net.mich431.*"},
+                             {"beta-reports-active": False}, {"get-task-allow": True}):
+            invalid.append({**profile, "Entitlements": {**profile["Entitlements"], **entitlements}})
+        without_beta = {**profile["Entitlements"]}
+        without_beta.pop("beta-reports-active")
+        invalid.extend([{**profile, "ProvisionedDevices": []},
+                        {**profile, "ProvisionedDevices": ["private-device-id"]},
+                        {**profile, "ProvisionsAllDevices": False},
+                        {**profile, "ProvisionsAllDevices": True},
+                        {**profile, "Entitlements": without_beta}])
+        for candidate in invalid:
+            with self.subTest(profile=candidate), self.assertRaises(ValueError):
+                self.helper.validate_profile(candidate, args)
+
+    def test_profile_types_cannot_cross_app_store_and_registered_device_methods(self):
+        for method in ("debugging", "release-testing"):
+            with self.subTest(method=method), self.assertRaises(ValueError):
+                self.helper.validate_profile(self.app_store_profile(), self.args(signed=True, extra=["--method", method]))
+        args = self.args(signed=True, extra=["--method", "app-store-connect"])
+        for get_task_allow in (False, True):
+            profile = {**self.profile, "Entitlements": {**self.profile["Entitlements"],
+                       "application-identifier": "PP97C35JA7.net.mich431.ffoxfork.dev",
+                       "get-task-allow": get_task_allow, "beta-reports-active": True}}
+            with self.subTest(get_task_allow=get_task_allow), self.assertRaises(ValueError):
+                self.helper.validate_profile(profile, args)
+
+    def test_app_store_build_number_format_and_signed_profile_are_required(self):
+        for number in ("0", "10000", "42.100", "42.01", "42.1.1.1", "42.beta"):
+            with self.subTest(number=number), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                self.args(signed=True, extra=["--method", "app-store-connect", "--build-number", number])
+        for number in ("1", "9999.99.99", "42.0", "42.1"):
+            with self.subTest(number=number):
+                self.assertEqual(self.args(signed=True, extra=["--method", "app-store-connect", "--build-number", number]).build_number, number)
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            self.args(extra=["--method", "app-store-connect"])
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            self.args(signed=True, extra=["--build-number", "42.1"])
 
     def test_exact_scoped_and_paid_team_wildcard_profiles(self):
         for app_id in ("PP97C35JA7.*", "PP97C35JA7.net.mich431.*", "PP97C35JA7.net.mich431.ffoxfork.dev"):

@@ -32,11 +32,13 @@ def arguments(argv=None):
     signing.add_argument("--unsigned", action="store_true")
     signing.add_argument("--profile", type=Path)
     parser.add_argument("--identity", help="Installed signing certificate SHA-1")
-    parser.add_argument("--method", choices=("debugging", "release-testing"), default="debugging")
+    parser.add_argument("--method", choices=("debugging", "release-testing", "app-store-connect"), default="debugging")
     args = parser.parse_args(argv)
     if not re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)", args.version):
         parser.error("--version must be X.Y.Z without leading zeroes")
-    if not re.fullmatch(r"[1-9][0-9]*", args.build_number):
+    if args.method == "app-store-connect" and not re.fullmatch(r"[1-9][0-9]{0,3}(?:\.(?:0|[1-9][0-9]?)){0,2}", args.build_number):
+        parser.error("App Store --build-number must have 1-3 numeric parts: first 1-9999, others 0-99")
+    if args.method != "app-store-connect" and not re.fullmatch(r"[1-9][0-9]*", args.build_number):
         parser.error("--build-number must be a positive integer")
     if not re.fullmatch(r"[A-Z0-9]{10}", args.team):
         parser.error("--team must be a 10-character Apple team ID")
@@ -46,6 +48,8 @@ def arguments(argv=None):
         parser.error("--profile requires --identity with a certificate SHA-1")
     if args.unsigned and args.identity:
         parser.error("--identity cannot be used with --unsigned")
+    if args.unsigned and args.method == "app-store-connect":
+        parser.error("--method app-store-connect requires a signed provisioning profile")
     return args
 
 
@@ -75,7 +79,14 @@ def validate_profile(profile, args):
     expiry = expiry.replace(tzinfo=timezone.utc) if expiry.tzinfo is None else expiry.astimezone(timezone.utc)
     if expiry <= datetime.now(timezone.utc):
         raise ValueError("Provisioning profile has expired or lacks an expiration date")
-    if not profile.get("ProvisionedDevices") or profile.get("ProvisionsAllDevices"):
+    if args.method == "app-store-connect":
+        if app_id not in expected_ids or "*" in app_id:
+            raise ValueError("App Store provisioning requires an explicit App ID")
+        if "ProvisionedDevices" in profile or "ProvisionsAllDevices" in profile:
+            raise ValueError("App Store provisioning must not contain device lists or enterprise provisioning")
+        if entitlements.get("beta-reports-active") is not True:
+            raise ValueError("TestFlight provisioning requires beta-reports-active")
+    elif not profile.get("ProvisionedDevices") or profile.get("ProvisionsAllDevices"):
         raise ValueError("Expected a registered-device development or ad hoc profile")
     if entitlements.get("get-task-allow") is not (args.method == "debugging"):
         raise ValueError("Provisioning profile does not match the requested export method")
@@ -144,6 +155,8 @@ def release(args):
             "CODE_SIGN_STYLE": "Manual", "CODE_SIGN_IDENTITY": args.identity,
             "PROVISIONING_PROFILE_SPECIFIER": profile["UUID"],
         })
+        if args.method == "app-store-connect":
+            configuration["buildSettings"]["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"
         project_path.write_bytes(plistlib.dumps(data, sort_keys=False))
     info_path = project.parent / "Info.plist"
     info = plistlib.loads(info_path.read_bytes())
@@ -169,16 +182,22 @@ def release(args):
         if len(apps) != 1:
             raise ValueError("Archive must contain exactly one app")
         verify_app(apps[0], args, profile)
+        artifacts = []
         if args.unsigned:
             artifact = output / f"FFox-{args.version}-unsigned-ios-ipados.zip"
             run(["ditto", "-c", "-k", "--keepParent", apps[0], artifact])
         else:
             export_options = work / "ExportOptions.plist"
-            export_options.write_bytes(plistlib.dumps({
+            options = {
                 "method": args.method, "signingStyle": "manual", "teamID": args.team,
                 "signingCertificate": args.identity, "provisioningProfiles": {args.bundle_id: profile["UUID"]},
-                "thinning": "<none>", "manageAppVersionAndBuildNumber": False,
-            }))
+                "manageAppVersionAndBuildNumber": False,
+            }
+            if args.method == "app-store-connect":
+                options.update({"destination": "export", "uploadSymbols": True})
+            else:
+                options["thinning"] = "<none>"
+            export_options.write_bytes(plistlib.dumps(options))
             exported = work / "Export"
             run(["xcodebuild", "-exportArchive", "-archivePath", archive,
                  "-exportPath", exported, "-exportOptionsPlist", export_options])
@@ -193,10 +212,18 @@ def release(args):
             verify_app(exported_apps[0], args, profile)
             artifact = output / f"FFox-{args.version}-ios-ipados.ipa"
             shutil.copyfile(ipas[0], artifact)
+            if args.method == "app-store-connect":
+                symbols = archive / "dSYMs"
+                if not symbols.is_dir() or not any(symbols.glob("*.dSYM")):
+                    raise ValueError("App Store archive is missing debug symbols")
+                symbol_archive = output / f"FFox-{args.version}-ios-ipados-dSYMs.zip"
+                run(["ditto", "-c", "-k", "--keepParent", symbols, symbol_archive])
+                artifacts.append(symbol_archive)
         metadata = {"version": args.version, "buildNumber": args.build_number,
                     "bundleIdentifier": args.bundle_id, "platforms": ["iOS", "iPadOS"],
                     "signing": "unsigned" if args.unsigned else args.method,
-                    "installation": "requires-resigning" if args.unsigned else "profile-registered-devices-only"}
+                    "installation": "requires-resigning" if args.unsigned else
+                    "app-store-connect" if args.method == "app-store-connect" else "profile-registered-devices-only"}
         if expiry:
             metadata["signingExpires"] = expiry.isoformat()
         commit = os.environ.get("GITHUB_SHA", "")
@@ -205,7 +232,7 @@ def release(args):
         build_info = output / "build-info.json"
         build_info.write_text(json.dumps(metadata, indent=2) + "\n")
         sums = []
-        for path in (artifact, build_info):
+        for path in (artifact, build_info, *artifacts):
             with path.open("rb") as stream:
                 digest = hashlib.sha256()
                 for block in iter(lambda: stream.read(1024 * 1024), b""):

@@ -92,7 +92,7 @@ final class CrossDissolveTransitionAnimator: NSObject,
         presentedController.view.transform = presentationInitialTransform(in: containerView)
         presentedController.view.alpha = 0.0
         presentedController.view.clipsToBounds = true
-        presentedController.view.applyScreenCornerRadius()
+        presentedController.view.applyPreviewCornerRadius()
 
         UIView.animate(
             withDuration: UX.springAnimationDuration,

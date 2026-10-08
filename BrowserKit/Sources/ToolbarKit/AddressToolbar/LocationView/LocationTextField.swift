@@ -50,7 +50,7 @@ final class LocationTextField: UITextField, UITextFieldDelegate, ThemeApplicable
     private var isSettingMarkedText = false
     private var lastMarkedText = ""
     var clearButton: UIButton? {
-        return value(forKey: "_clearButton") as? UIButton
+        return subviews.compactMap { $0 as? UIButton }.first { $0 !== rightView }
     }
 
     var editingAccessoryAction: ToolbarElement? {
@@ -331,12 +331,9 @@ final class LocationTextField: UITextField, UITextFieldDelegate, ThemeApplicable
     }
 
     private func tintClearButton() {
-        // Since we're unable to change the tint color of the clear image, we need to use KVO to
-        // find the clear button, and tint it ourselves.
-        // https://stackoverflow.com/questions/27944781/how-to-change-the-tint-color-of-the-clear-button-on-a-uitextfield
         guard let image = UIImage(named: StandardImageIdentifiers.Large.crossCircleFill),
               let clearButtonTintColor,
-              let clearButton = value(forKey: "_clearButton") as? UIButton
+              let clearButton
         else { return }
 
         tintedClearImage = image.withTintColor(clearButtonTintColor)

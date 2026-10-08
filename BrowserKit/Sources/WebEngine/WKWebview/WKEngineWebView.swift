@@ -32,6 +32,7 @@ protocol WKEngineWebView: UIView {
 
     var allowsBackForwardNavigationGestures: Bool { get set }
     var allowsLinkPreview: Bool { get set }
+    var pageZoom: CGFloat { get set }
     var backgroundColor: UIColor? { get set }
     var interactionState: Any? { get set }
     var engineScrollView: WKScrollView? { get }
