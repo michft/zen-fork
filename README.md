@@ -3,6 +3,9 @@
 Local fork of Firefox for iPhone and iPad with desktop browsing and built-in ad blocking enabled by default.
 See [fork behavior, setup, and validation](docs/iphone-fork.md).
 
+Public source: [michft/zen-fork](https://github.com/michft/zen-fork).
+See [CI, signed releases, and installation limits](docs/github-releases.md).
+
 ## Upstream Firefox for iOS and Focus iOS
 
 Download [Firefox iOS](https://apps.apple.com/app/firefox-web-browser/id989804926) and [Focus iOS](https://itunes.apple.com/app/id1055677337) on the App Store.
@@ -41,16 +44,9 @@ Steps: [Automated Project Setup with FXIOS](https://github.com/mozilla-mobile/fi
 
 ## Getting involved
 
-We encourage you to participate in those open source projects. We love Pull Requests, Issue Reports, Feature Requests or any kind of positive contribution. Please read the [Mozilla Community Participation Guidelines](https://www.mozilla.org/en-US/about/governance/policies/participation/) and our [Contributing guidelines](https://github.com/mozilla-mobile/firefox-ios/blob/main/CONTRIBUTING.md) first.
-
-- You can [file a new issue](https://github.com/mozilla-mobile/firefox-ios/issues/new/choose) or research [existing bugs](https://github.com/mozilla-mobile/firefox-ios/issues)
-
-If more information is required or you have any questions then we suggest reaching out to us via:
-
-- Chat on Element channel [#fx-ios](https://chat.mozilla.org/#/room/#fx-ios:mozilla.org) and [#focus-ios](https://chat.mozilla.org/#/room/#focus-ios:mozilla.org) for general discussion, or write DMs to specific teammates for questions.
-- Open a [ticket](https://github.com/mozilla-mobile/firefox-ios/issues/new?template=BLANK_ISSUE) with your question.
-
-Want to contribute on the codebase but don't know where to start? Here is a list of [issues that are contributor friendly](https://github.com/mozilla-mobile/firefox-ios/labels/Contributor%20OK), but make sure to read the [Contributing guidelines](https://github.com/mozilla-mobile/firefox-ios/blob/main/CONTRIBUTING.md) first.
+Report fork bugs and propose changes in [michft/zen-fork](https://github.com/michft/zen-fork).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for general code contribution guidance and
+[GitHub releases](docs/github-releases.md) for this fork's build/release process.
 
 ## License
 
