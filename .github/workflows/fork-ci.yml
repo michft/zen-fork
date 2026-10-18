@@ -28,6 +28,7 @@ jobs:
           python3 -m unittest discover -s scripts -p 'test_deploy_device.py'
           python3 -m unittest discover -s scripts -p 'test_release_ios.py'
           python3 -m unittest discover -s scripts -p 'test_prepare_ci_dependencies.py'
+          python3 -m unittest discover -s scripts -p 'test_prepare_down_security.py'
 
   universal-build:
     if: github.repository == 'michft/zen-fork'
@@ -76,7 +77,9 @@ jobs:
           python3 scripts/prepare-ci-dependencies.py --archive "$ARCHIVE"
           cp scripts/nimbus-fml-offline.sh firefox-ios/bin/nimbus-fml.sh
       - name: Test project preparation
-        run: python3 -m unittest discover -s scripts -p 'test_prepare_personal_device.py'
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_prepare_personal_device.py'
+          DOWN_CMARK_INTEGRATION=1 python3 -m unittest discover -s scripts -p 'test_prepare_down_security.py'
       - name: Archive universal unsigned Release app
         run: |
           python3 scripts/release-ios.py \

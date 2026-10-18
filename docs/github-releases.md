@@ -23,16 +23,20 @@ and artifact upload actions are pinned to releases using the Node 24 runtime.
 Automatic package-manager caching is disabled; the dependency snapshot remains
 the explicit native build cache.
 
+`pnpm-lock.yaml` is the sole JavaScript lockfile. Use `pnpm install --frozen-lockfile`;
+`pnpm-workspace.yaml` carries the scoped build-tool security override. The stale
+npm lockfile was removed to avoid reporting or installing a different dependency graph.
+
 See [GitHub's supported runner labels](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run)
 and [Xcode 27 preview announcement](https://github.com/actions/runner-images/issues/14404).
 
 ## Dependencies without upstream build downloads
 
 `ci/dependencies.json` pins a public asset in this repository's
-`build-deps-2026-10-06` dependency release, including its SHA-256. It contains existing
+`build-deps-2026-10-19` dependency release, including its SHA-256. It contains existing
 public Swift package sources/binary caches, Nimbus generator, and SwiftLint. License
 notices remain with their packages. It contains no application archive, provisioning
-profile, P12, signing key, or keychain. The snapshot is approximately 1.3GB compressed.
+profile, P12, signing key, or keychain. The snapshot is 1,384,659,406 bytes compressed (approximately 1.38GB).
 
 CI downloads only the michft snapshot, checks its SHA-256, verifies manifest hashes
 and checkout commits, then relocates cached paths. Swift package automatic resolution
@@ -53,6 +57,13 @@ Audit the exact payload before public upload. Preserve licenses, publish under a
 new `build-deps-YYYY-MM-DD` tag in michft/zen-fork, and update `ci/dependencies.json`
 with the new name/hash. Cache archives stay outside tracked source. Restoration
 requires Python 3.12+ and empty cache destinations.
+
+Restoration and app-only project preparation apply the tracked Down/cmark security
+backports before compilation. Unexpected dependency revisions or source hashes
+stop preparation. When building the original Xcode project directly, run
+`python3 scripts/prepare-down-security.py` after resolving the pinned packages and
+before building. See [security maintenance](security-maintenance.md) for patches,
+validation, and remaining coverage gaps.
 
 ## Unsigned PR builds
 

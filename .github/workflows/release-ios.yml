@@ -94,6 +94,7 @@ jobs:
           python3 -m unittest discover -s scripts -p 'test_prepare_personal_device.py'
           python3 -m unittest discover -s scripts -p 'test_release_ios.py'
           python3 -m unittest discover -s scripts -p 'test_prepare_ci_dependencies.py'
+          DOWN_CMARK_INTEGRATION=1 python3 -m unittest discover -s scripts -p 'test_prepare_down_security.py'
       - name: Import release signing identity
         env:
           CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}

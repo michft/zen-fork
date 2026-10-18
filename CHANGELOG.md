@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Update reviewed JavaScript and Swift security dependencies; apply guarded cmark backports during dependency preparation.
 - Add michft-only public CI and universal unsigned iPhone/iPad build artifacts.
 - Add paid-team manual signing and `ffox-vMAJOR.MINOR.PATCH` GitHub Releases.
 - Restore pinned build dependencies from michft assets without upstream build downloads.
