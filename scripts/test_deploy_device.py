@@ -76,13 +76,35 @@ class DeployDeviceTests(unittest.TestCase):
         calls = self.run_deploy(self.deployer.arguments(["both"]))
         destinations = [command[command.index("-destination") + 1]
                         for command in calls if command[0] == "xcodebuild"]
-        self.assertEqual(destinations, [f"id={udid}" for udid in self.deployer.DEVICES.values()])
+        expected_devices = ["00008150-00112CC60EF2401C", "00008122-000928CC2E11001C"]
+        self.assertEqual(destinations, [f"id={udid}" for udid in expected_devices])
         installed = [command[command.index("--device") + 1]
                      for command in calls if "install" in command]
-        self.assertEqual(installed, list(self.deployer.DEVICES.values()))
+        self.assertEqual(installed, expected_devices)
         launches = [command[command.index("--device") + 1]
                     for command in calls if "launch" in command]
-        self.assertEqual(launches, list(self.deployer.DEVICES.values()))
+        self.assertEqual(launches, expected_devices)
+
+    def test_lois_ipad_routes_build_install_and_launch_to_explicit_device(self):
+        calls = self.run_deploy(self.deployer.arguments(["Lois-iPad"]))
+        destinations = [command[command.index("-destination") + 1]
+                        for command in calls if command[0] == "xcodebuild"]
+        self.assertEqual(destinations, ["id=00008132-000471C02620C01C"])
+        for action in ("install", "launch"):
+            with self.subTest(action=action):
+                devices = [command[command.index("--device") + 1]
+                           for command in calls if action in command]
+                self.assertEqual(devices, ["00008132-000471C02620C01C"])
+
+    def test_builds_use_pinned_package_cache_without_automatic_resolution(self):
+        calls = self.run_deploy(self.deployer.arguments(["both"]))
+        builds = [command for command in calls if command[0] == "xcodebuild"]
+        self.assertEqual(len(builds), 2)
+        for build in builds:
+            for flag in ("-skipPackageUpdates", "-disableAutomaticPackageResolution",
+                         "-onlyUsePackageVersionsFromResolvedFile"):
+                with self.subTest(destination=build[build.index("-destination") + 1], flag=flag):
+                    self.assertIn(flag, build)
 
     def test_build_and_signature_failures_prevent_install(self):
         for failure in ("build", "signature"):
@@ -99,7 +121,7 @@ class DeployDeviceTests(unittest.TestCase):
                 calls = self.run_deploy(self.deployer.arguments(["both"]), profile=profile)
                 installed = [command[command.index("--device") + 1]
                              for command in calls if "install" in command]
-                self.assertEqual(installed, list(self.deployer.DEVICES.values()))
+                self.assertEqual(installed, ["00008150-00112CC60EF2401C", "00008122-000928CC2E11001C"])
 
     def test_unrelated_and_invalid_wildcards_prevent_install(self):
         for app_id in ("OTHERTEAM1.*", "PP97C35JA7.net.other.*", "PP97C35JA7.net.mich43.*",

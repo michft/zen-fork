@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DEVICES = {
     "deadbeef7": "00008150-00112CC60EF2401C",
     "deadbeef6": "00008122-000928CC2E11001C",
+    "Lois-iPad": "00008132-000471C02620C01C",
 }
 
 
@@ -55,13 +56,13 @@ def deploy(args):
             if not shutil.which(tool):
                 raise RuntimeError(f"Missing {tool}. See docs/command-line-deploy.md.")
         if not (ROOT / "node_modules").is_dir():
-            raise RuntimeError("Install JS dependencies first: pnpm install --lockfile=false")
+            raise RuntimeError("Install JS dependencies first: pnpm install --frozen-lockfile")
 
     run(["pnpm", "run", "build"])
     run([sys.executable, ROOT / "scripts/prepare-personal-device.py",
          "--team", args.team, "--bundle-id", args.bundle_id])
     app = ROOT / ".build/DeviceDerivedData/Build/Products/Debug-iphoneos/Client.app"
-    targets = list(DEVICES) if args.device == "both" else [args.device]
+    targets = ["deadbeef7", "deadbeef6"] if args.device == "both" else [args.device]
     for name in targets:
         udid = DEVICES[name]
         print(f"\nBuilding and deploying to {name} ({udid})", flush=True)
@@ -71,7 +72,8 @@ def deploy(args):
             "-derivedDataPath", ROOT / ".build/DeviceDerivedData",
             "-clonedSourcePackagesDirPath", ROOT / ".build/SourcePackages",
             "-scmProvider", "system", "-packageAuthorizationProvider", "netrc",
-            "-skipPackageUpdates", "-allowProvisioningUpdates",
+            "-skipPackageUpdates", "-disableAutomaticPackageResolution",
+            "-onlyUsePackageVersionsFromResolvedFile", "-allowProvisioningUpdates",
             "-allowProvisioningDeviceRegistration",
             f"DEVELOPMENT_TEAM={args.team}", "CODE_SIGN_STYLE=Automatic",
         ]

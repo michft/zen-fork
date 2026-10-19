@@ -5,7 +5,8 @@ From this repo directory on the Mac:
 ```sh
 ./scripts/deploy-device.py           # deadbeef7 iPhone
 ./scripts/deploy-device.py deadbeef6 # iPad
-./scripts/deploy-device.py both      # iPhone, then iPad
+./scripts/deploy-device.py Lois-iPad # Lois's iPad (explicit target)
+./scripts/deploy-device.py both      # deadbeef7, then deadbeef6; excludes Lois-iPad
 ```
 
 The script builds the current working copy, including uncommitted edits. It rebuilds
@@ -18,14 +19,16 @@ with a nonzero exit code; any earlier successful device deployment remains insta
 
 "Update" means updating the installed app from local code. Source pulls, dependency
 upgrades, and new ad-blocking rules are separate tasks. The command does not fetch
-or merge upstream source. Missing pinned Swift packages may still be downloaded by
-Xcode. See [fork setup and limitations](iphone-fork.md).
+or merge upstream source. Xcode package updates and automatic resolution are disabled;
+the build uses pinned versions from the resolved file and the prepared local package
+cache. Restore that cache before deploying. See [fork setup and limitations](iphone-fork.md).
 
 ## Prerequisites
 
 - Complete this checkout's existing [setup](iphone-fork.md#setup-and-installation-status):
   Xcode, Python 3, pnpm/Node, installed JS dependencies, Nimbus bootstrap, and SwiftLint.
-  If JS dependencies are missing, run `pnpm install --lockfile=false` first.
+  If JS dependencies are missing, run `pnpm install --frozen-lockfile` first.
+  Prepare the pinned Swift package cache at `.build/SourcePackages` first.
 - Select the full Xcode installation with `xcode-select`; accept its license and
   first-launch setup. Sign into the signing Apple account in Xcode Settings.
 - Connect and unlock the chosen device, pair/trust the Mac, and enable Developer Mode.
@@ -36,7 +39,9 @@ Xcode. See [fork setup and limitations](iphone-fork.md).
 - Keep internet available for Apple signing and device verification.
 
 Defaults match this fork: team `PP97C35JA7`, bundle `net.mich431.ffoxfork.dev`, and
-the known UDIDs of deadbeef7/deadbeef6. Override signing explicitly when needed:
+the known UDIDs of deadbeef7/deadbeef6/Lois-iPad. `Lois-iPad` maps to
+`00008132-000471C02620C01C`; `both` still selects only deadbeef7/deadbeef6.
+Override signing explicitly when needed:
 
 ```sh
 ./scripts/deploy-device.py deadbeef7 --team YOURTEAMID --bundle-id net.example.ffoxfork.dev

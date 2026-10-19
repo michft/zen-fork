@@ -1,11 +1,19 @@
 # Dependency security maintenance
 
-Reviewed 19 October 2026 against the 12 October baseline. Version matches,
+Reviewed 19–20 October 2026 against the 12 October baseline. Version matches,
 reachable code, and demonstrated exploitation are different findings. This change
 updates reviewed dependencies and backports parser fixes; it is not a complete SBOM
 or a guarantee that the app has no vulnerabilities.
 
 ## Applied fixes
+
+Translation Services also binds page-controlled language strings through
+`callAsyncJavaScript(arguments:)`, retaining the isolated `.defaultClient` world.
+This closes the source pattern in High
+[CVE-2026-103418](https://www.mozilla.org/en-US/security/advisories/mfsa2026-105/);
+the upstream 157.1 version label alone did not establish that the fork contained
+the fix. The existing service test exercises a real WKWebView with quoted,
+backslash-containing and injection-shaped language values.
 
 | Component | Change | Evidence |
 | --- | --- | --- |
@@ -51,18 +59,35 @@ Re-review patches and hashes when updating Down; do not bypass a hash failure.
 
 ## Remaining findings and coverage gaps
 
-- Build-only `sprintf-js` 1.0.3 / 1.1.3 still matches Moderate
+- Build-only `sprintf-js` 1.0.3 / 1.1.3 matches Moderate
   [CVE-2026-97058 / GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c).
-  It requires attacker-controlled format strings; inspected agtree error formats
-  are static. Audit metadata suggests 1.1.4, but the npm registry returns 404 for
-  that release and OSV reports no published fix. No nonexistent-version override
-  or semantically different formatter was substituted.
-- Glean 69.0.0's license inventory includes `idna` 0.3.0
-  ([CVE-2024-12224](https://rustsec.org/advisories/RUSTSEC-2024-0421.html), recommend
-  idna ≥1.0.3 / url ≥2.5.4), `anyhow` 1.0.95
-  ([RUSTSEC-2026-0190](https://rustsec.org/advisories/RUSTSEC-2026-0190.html), fixed
-  1.0.103), and unmaintained `bincode` 1.3.3. The inventory aggregates build,
-  test, and platform dependencies; linkage and input reachability are unverified.
+  No upstream fix is published. Tracked pnpm patches bound numeric `e`/`f`
+  precision to 0–100 and `g` precision to 1–100, preventing the numeric-method
+  RangeError while preserving every valid precision output. Excessive precision
+  now uses the nearest supported bound. This is a local compatibility backport;
+  advisory databases still match the unchanged package versions. The patches do
+  not promise to accept every malformed format or unbounded field width.
+  `node --test scripts/test-sprintf-security.mjs` exercises both actual dependency
+  paths; CI runs it alongside the existing generated-rule checks.
+- Glean 69.0.0's source graph contains `idna` 0.3.0 through
+  rkv 0.20.0 → url 2.3.1
+  ([CVE-2024-12224](https://rustsec.org/advisories/RUSTSEC-2024-0421.html), Moderate;
+  recommend idna ≥1.0.3 / url ≥2.5.4). The inspected
+  [rkv helper](https://github.com/mozilla/rkv/blob/v0.20.0/src/helpers.rs)
+  converts canonical filesystem paths through URL only inside a Windows branch;
+  that branch is inactive on iOS and performs no network-origin privilege check.
+  The CVE trigger is absent from this inspected iOS path. This is a scoped
+  reachability conclusion, not a whole-binary safety claim.
+- The cached iOS-arm64 Glean binary independently embeds `anyhow-1.0.95` source
+  paths and anyhow symbols. Informational
+  [RUSTSEC-2026-0190](https://rustsec.org/advisories/RUSTSEC-2026-0190.html) is fixed
+  in 1.0.103 and requires context plus mutable downcasting. The inspected
+  [UniFFI 0.31 converter](https://github.com/mozilla/uniffi-rs/blob/v0.31.0/uniffi_core/src/ffi_converter_impls.rs)
+  uses owned `downcast`, not `downcast_mut`; the vulnerable trigger across the
+  complete binary remains unverified. The binary was not patched. A reproducible
+  rebuild requires matching Glean 69 Rust source/Cargo.lock, fixed anyhow source,
+  iOS Rust targets and complete offline crate/parser inputs, absent locally.
+  Unmaintained bincode and other opaque transitive versions remain coverage gaps.
 - Mozilla Application Services 158.0.20260911050252 contains Rust/NSS/NSPR/SQLite
   components without a binary-specific version/feature SBOM. These binaries were
   retained. Changing Swift package metadata cannot patch their embedded code.
@@ -73,6 +98,6 @@ Re-review patches and hashes when updating Down; do not bypass a hash failure.
   the new Swift pins. Publishing the private local cache contents as a public
   release asset remains a separate action; an old snapshot must not be accepted.
 
-Previously installed apps require a patched rebuild and installation to receive
-these changes. This PR does not establish the version currently installed on a
+Deployment evidence must identify the patched build and each device install/launch
+result; source fixes alone do not establish that installed apps received them. This PR does not establish the version currently installed on a
 device or close the opaque-binary coverage gaps.
