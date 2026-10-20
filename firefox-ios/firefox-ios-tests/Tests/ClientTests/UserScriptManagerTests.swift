@@ -23,7 +23,7 @@ final class UserScriptManagerTests: XCTestCase {
         }
         XCTAssertNotNil(script)
         XCTAssertEqual(script?.injectionTime, .atDocumentStart)
-        XCTAssertEqual(script?.forMainFrameOnly, false)
+        XCTAssertEqual(script?.isForMainFrameOnly, false)
     }
 
     func testYouTubeAdBlockerScriptIsOmittedWhenDisabled() {

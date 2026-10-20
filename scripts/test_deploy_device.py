@@ -54,6 +54,8 @@ class DeployDeviceTests(unittest.TestCase):
                 raise subprocess.CalledProcessError(1, command)
             if failure == "signature" and command[:2] == ["codesign", "--verify"]:
                 raise subprocess.CalledProcessError(1, command)
+            if failure == "locked-launch" and command[:4] == ["xcrun", "devicectl", "device", "process"]:
+                raise subprocess.CalledProcessError(1, command, stderr=b"    BSErrorCodeDescription = Locked\n")
             if command[:3] == ["security", "cms", "-D"]:
                 return subprocess.CompletedProcess(command, 0, plistlib.dumps(profile or self.profile))
             return subprocess.CompletedProcess(command, 0, b"")
@@ -76,13 +78,35 @@ class DeployDeviceTests(unittest.TestCase):
         calls = self.run_deploy(self.deployer.arguments(["both"]))
         destinations = [command[command.index("-destination") + 1]
                         for command in calls if command[0] == "xcodebuild"]
-        self.assertEqual(destinations, [f"id={udid}" for udid in self.deployer.DEVICES.values()])
+        expected_devices = ["00008150-00112CC60EF2401C", "00008122-000928CC2E11001C"]
+        self.assertEqual(destinations, [f"id={udid}" for udid in expected_devices])
         installed = [command[command.index("--device") + 1]
                      for command in calls if "install" in command]
-        self.assertEqual(installed, list(self.deployer.DEVICES.values()))
+        self.assertEqual(installed, expected_devices)
         launches = [command[command.index("--device") + 1]
                     for command in calls if "launch" in command]
-        self.assertEqual(launches, list(self.deployer.DEVICES.values()))
+        self.assertEqual(launches, expected_devices)
+
+    def test_lois_ipad_routes_build_install_and_launch_to_explicit_device(self):
+        calls = self.run_deploy(self.deployer.arguments(["Lois-iPad"]))
+        destinations = [command[command.index("-destination") + 1]
+                        for command in calls if command[0] == "xcodebuild"]
+        self.assertEqual(destinations, ["id=00008132-000471C02620C01C"])
+        for action in ("install", "launch"):
+            with self.subTest(action=action):
+                devices = [command[command.index("--device") + 1]
+                           for command in calls if action in command]
+                self.assertEqual(devices, ["00008132-000471C02620C01C"])
+
+    def test_builds_use_pinned_package_cache_without_automatic_resolution(self):
+        calls = self.run_deploy(self.deployer.arguments(["both"]))
+        builds = [command for command in calls if command[0] == "xcodebuild"]
+        self.assertEqual(len(builds), 2)
+        for build in builds:
+            for flag in ("-skipPackageUpdates", "-disableAutomaticPackageResolution",
+                         "-onlyUsePackageVersionsFromResolvedFile"):
+                with self.subTest(destination=build[build.index("-destination") + 1], flag=flag):
+                    self.assertIn(flag, build)
 
     def test_build_and_signature_failures_prevent_install(self):
         for failure in ("build", "signature"):
@@ -99,7 +123,7 @@ class DeployDeviceTests(unittest.TestCase):
                 calls = self.run_deploy(self.deployer.arguments(["both"]), profile=profile)
                 installed = [command[command.index("--device") + 1]
                              for command in calls if "install" in command]
-                self.assertEqual(installed, list(self.deployer.DEVICES.values()))
+                self.assertEqual(installed, ["00008150-00112CC60EF2401C", "00008122-000928CC2E11001C"])
 
     def test_unrelated_and_invalid_wildcards_prevent_install(self):
         for app_id in ("OTHERTEAM1.*", "PP97C35JA7.net.other.*", "PP97C35JA7.net.mich43.*",
@@ -135,13 +159,22 @@ class DeployDeviceTests(unittest.TestCase):
             self.assertEqual(self.deployer.main(["deadbeef7"]), 1)
         deploy.assert_not_called()
 
+    def test_locked_launch_defers_and_continues_both_installations(self):
+        with redirect_stdout(io.StringIO()) as output:
+            calls = self.run_deploy(self.deployer.arguments(["both"]), failure="locked-launch")
+        installed = [command[command.index("--device") + 1] for command in calls if "install" in command]
+        self.assertEqual(installed, [self.deployer.DEVICES[name] for name in ("deadbeef7", "deadbeef6")])
+        self.assertEqual(sum("launch" in command for command in calls), 2)
+        self.assertEqual(output.getvalue().count("launch deferred because device is locked"), 2)
+        self.assertNotIn("Installed and launched", output.getvalue())
+
     def test_launch_failure_reports_installed_and_fails(self):
         calls = []
 
         def run(command, **kwargs):
             calls.append(command)
             if command[:4] == ["xcrun", "devicectl", "device", "process"]:
-                raise subprocess.CalledProcessError(1, command)
+                raise subprocess.CalledProcessError(1, command, output=b"BSErrorCodeDescription = RequestDenied\nLocked device advice\n")
             if command[:3] == ["security", "cms", "-D"]:
                 return subprocess.CompletedProcess(command, 0, plistlib.dumps(self.profile))
             return subprocess.CompletedProcess(command, 0, b"")

@@ -3,6 +3,7 @@ import plistlib
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -77,9 +78,14 @@ class PreparePersonalDeviceTests(unittest.TestCase):
             original_project = (source / "project.pbxproj").read_bytes()
 
             generator = load_generator(scripts / SCRIPT.name)
+            security_patches = patch.object(generator, "apply_security_patches")
+            apply_patches = security_patches.start()
+            self.addCleanup(security_patches.stop)
             project = generator.prepare("ABCDE12345", "com.example.ffox.dev")
+            apply_patches.assert_called_once_with(root.resolve())
 
             self.assertEqual(original_project, (source / "project.pbxproj").read_bytes())
+
             generated = plistlib.loads((project / "project.pbxproj").read_bytes())
             objects = generated["objects"]
             client = next(obj for obj in objects.values() if obj.get("name") == "Client")
@@ -107,6 +113,10 @@ class PreparePersonalDeviceTests(unittest.TestCase):
             self.assertEqual(archive.get("buildConfiguration"), "Release")
             self.assertIsNone(archive.find("PreActions"))
             self.assertEqual(original_project, (source / "project.pbxproj").read_bytes())
+
+            apply_patches.side_effect = ValueError("Unexpected dependency source")
+            with self.assertRaisesRegex(ValueError, "Unexpected dependency source"):
+                generator.prepare("ABCDE12345", "com.example.ffox.dev")
 
 
 if __name__ == "__main__":

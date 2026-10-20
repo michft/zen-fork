@@ -61,7 +61,7 @@ final class ContentBlockerTests: XCTestCase {
         ContentBlocker.shared.compileListsNotInStore { compiled.fulfill() }
         await fulfillment(of: [compiled], timeout: 30)
 
-        let rule = try await ContentBlocker.shared.ruleStore?.lookUpContentRuleList(
+        let rule = try await ContentBlocker.shared.ruleStore?.contentRuleList(
             forIdentifier: ASAdBlockerListFetcher.adBlockerRecordID
         )
         XCTAssertNotNil(rule)

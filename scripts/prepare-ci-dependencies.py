@@ -3,6 +3,7 @@
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -24,6 +25,13 @@ REQUIRED_INPUTS = (
     "SampleComponentLibraryApp/SampleComponentLibraryApp.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
     "firefox-ios/Client.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
 )
+
+
+def apply_security_patches(root):
+    spec = importlib.util.spec_from_file_location("prepare_down_security", Path(__file__).with_name("prepare-down-security.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.apply(root)
 
 
 def safe_path(name):
@@ -152,6 +160,7 @@ def restore(archive_path):
             state = relocate(stage, manifest["original_root"], stage)
             pins = json.loads((root / REQUIRED_INPUTS[-1]).read_text())["pins"]
             verify_packages(stage, state, pins)
+            apply_security_patches(stage)
             relocate(stage, str(stage), root)
             for content in CONTENTS:
                 target = root / content

@@ -19,6 +19,9 @@ class PrepareCIDependenciesTests(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("prepare_ci_dependencies", SCRIPT)
         self.helper = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.helper)
+        security_patches = patch.object(self.helper, "apply_security_patches")
+        self.security_patches = security_patches.start()
+        self.addCleanup(security_patches.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name)
@@ -99,6 +102,13 @@ class PrepareCIDependenciesTests(unittest.TestCase):
         self.bundle()
         (self.root / "MozillaRustComponents/Package.swift").write_text("new binary version")
         with self.assertRaisesRegex(ValueError, "inputs changed"):
+            self.restore()
+        self.assertFalse((self.root / ".build/SourcePackages").exists())
+
+    def test_security_patch_failure_prevents_installing_cache(self):
+        self.bundle()
+        self.security_patches.side_effect = ValueError("Unexpected dependency source")
+        with self.assertRaisesRegex(ValueError, "Unexpected dependency source"):
             self.restore()
         self.assertFalse((self.root / ".build/SourcePackages").exists())
 

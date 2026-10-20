@@ -215,6 +215,43 @@ final class TranslationsServiceTests: XCTestCase {
         }
     }
 
+    func test_translateCurrentPage_treatsLanguageValuesAsData() async throws {
+        let sourceLanguage = #"en", to: "en"}); window.translationInjected = true; //"#
+        let targetLanguage = #"fr"\path"#
+        let subject = createSubject(
+            detectedLanguage: sourceLanguage,
+            languageDetectorError: nil,
+            modelsAvailable: true
+        )
+        let webView = try XCTUnwrap(mockTabManager.selectedTab?.webView)
+        _ = try await webView.callAsyncJavaScript(
+            """
+            window.translationInjected = false;
+            window.__firefox__ = { Translations: { startTranslations(args) {
+                window.translationArguments = args;
+            } } };
+            """,
+            contentWorld: .defaultClient
+        )
+
+        try await subject.translateCurrentPage(
+            for: .XCTestDefaultUUID,
+            to: targetLanguage,
+            onLanguageIdentified: nil
+        )
+
+        let arguments = try await webView.callAsyncJavaScript(
+            "return window.translationArguments",
+            contentWorld: .defaultClient
+        ) as? [String: String]
+        let injected = try await webView.callAsyncJavaScript(
+            "return window.translationInjected",
+            contentWorld: .defaultClient
+        ) as? Bool
+        XCTAssertEqual(arguments, ["from": sourceLanguage, "to": targetLanguage])
+        XCTAssertEqual(injected, false)
+    }
+
     private func createSubject(
         detectedLanguage: String?,
         languageDetectorError: Error?,

@@ -4,6 +4,7 @@
 import argparse
 import copy
 import hashlib
+import importlib.util
 import json
 import plistlib
 import re
@@ -11,6 +12,13 @@ import shutil
 import subprocess
 from pathlib import Path
 import xml.etree.ElementTree as ET
+
+
+def apply_security_patches(root):
+    spec = importlib.util.spec_from_file_location("prepare_down_security", Path(__file__).with_name("prepare-down-security.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.apply(root)
 
 
 def prepare(team: str, bundle_id: str, configuration: str = "Debug") -> Path:
@@ -22,6 +30,7 @@ def prepare(team: str, bundle_id: str, configuration: str = "Debug") -> Path:
         raise ValueError("Expected Debug or Release configuration")
 
     root = Path(__file__).resolve().parent.parent
+    apply_security_patches(root)
     app_root = root / "firefox-ios"
     source = app_root / "Client.xcodeproj"
     output = root / ".build" / "personal-device"

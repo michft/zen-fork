@@ -153,3 +153,6 @@ LicensePlistTemp
 # Claude Code
 .claude/settings.local.json
 .mcp.json
+
+# Local pnpm package store
+.pnpm-store/
