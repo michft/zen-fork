@@ -43,9 +43,12 @@ devices. The validator fix passed all nine focused deployment/preparation tests.
 
 The current patched FFox 157.1 (build 1), bundle `net.mich431.ffoxfork.dev`, was
 built and signed for device families 1 and 2, then installed successfully on
-`deadbeef7` and `deadbeef6`. Device launch requests were rejected with `Locked`;
-launch/UI verification is incomplete until both devices are unlocked. Lois-iPad
-was unavailable and its deployment remains incomplete.
+`deadbeef7` and `deadbeef6`. Initial launch requests were rejected with `Locked`;
+both app installations were confirmed. The follow-up iPhone update and process
+launch succeeded. The iPad repeat installation encountered a remote connection
+error and bounded retry timed out; its earlier patched installation was confirmed,
+while launch/UI verification remains deferred. Lois-iPad is excluded from routine
+updates unless specifically requested.
 
 The embedded profile covers all three registered devices and expires
 18 October 2027, 15:58:46 Sydney. The selected installed signing certificate still
@@ -68,7 +71,10 @@ T3 Code tasks post into the original rebuild thread:
   pinned/installed JS and Swift libraries, vendored code, Mozilla/Glean binaries,
   Firefox iOS advisories, and OS-provided WebKit advisories. Since 20 October,
   each run must patch still-valid actionable findings, run focused checks, build,
-  sign, install and launch on deadbeef7, deadbeef6 and Lois-iPad. Builds and
+  sign and install on deadbeef7 and deadbeef6, then attempt launch. Lois-iPad is
+  included only when specifically requested for that run. An explicit `Locked`
+  launch refusal is recorded as deferred verification after a completed update;
+  it does not stop the other default device. Builds and
   deployments also run when no new applicable CVE is found. A report alone never
   completes the task. Unavailable hardware/signing prerequisites leave that
   deployment incomplete and require concrete follow-up; other targets continue.

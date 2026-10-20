@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build local FFox code, update signing as needed, install, and launch."""
+"""Build and sign local FFox code, install, and launch when unlocked."""
 
 import argparse
 from datetime import datetime, timezone
@@ -43,13 +43,14 @@ def arguments(argv=None):
 def deploy(args):
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "/usr/bin/false"}
 
-    def run(command, capture=False):
+    def run(command, capture=False, capture_errors=False):
         command = [str(part) for part in command]
         print("+ " + shlex.join(command), flush=True)
         if args.dry_run:
             return None
         return subprocess.run(command, cwd=ROOT, env=env, check=True,
-                              stdout=subprocess.PIPE if capture else None).stdout
+                              stdout=subprocess.PIPE if capture else None,
+                              stderr=subprocess.PIPE if capture_errors else None).stdout
 
     if not args.dry_run:
         for tool in ("pnpm", "xcodebuild", "xcrun", "codesign", "security"):
@@ -102,9 +103,17 @@ def deploy(args):
             print(f"Signing expires: {expiry.astimezone().isoformat(timespec='seconds')}", flush=True)
         run(["xcrun", "devicectl", "device", "install", "app", "--device", udid, app])
         try:
-            run(["xcrun", "devicectl", "device", "process", "launch", "--device", udid,
-                 "--terminate-existing", args.bundle_id])
-        except subprocess.CalledProcessError:
+            launch_output = run(["xcrun", "devicectl", "device", "process", "launch", "--device", udid,
+                                 "--terminate-existing", args.bundle_id], capture=True, capture_errors=True)
+            if launch_output:
+                print(launch_output.decode(errors="replace"), end="")
+        except subprocess.CalledProcessError as error:
+            details = b"\n".join((error.stderr or b"", error.output or b"")).decode(errors="replace")
+            if re.search(r"^\s*BSErrorCodeDescription = Locked\s*$", details, re.MULTILINE):
+                print(f"Installed FFox fork dev on {name}; launch deferred because device is locked.", flush=True)
+                continue
+            if details.strip():
+                print(details, file=sys.stderr)
             print(f"Installed on {name}, but launch failed. Unlock device and check Developer Mode.\n"
                   "For an untrusted-developer popup: Settings > General > VPN & Device Management\n"
                   "> Developer App > Trust/Verify while connected to the internet.", file=sys.stderr)

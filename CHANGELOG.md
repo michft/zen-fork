@@ -2,8 +2,8 @@
 
 ## Unreleased
 
+- Continue updates across locked-device launch refusals; keep Lois-iPad an explicit target.
 - Bind translation language arguments safely, backport formatter precision limits, and require weekly patch/build/device deployment.
-
 - Update reviewed JavaScript and Swift security dependencies; apply guarded cmark backports during dependency preparation.
 - Add michft-only public CI and universal unsigned iPhone/iPad build artifacts.
 - Add paid-team manual signing and `ffox-vMAJOR.MINOR.PATCH` GitHub Releases.

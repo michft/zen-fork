@@ -54,6 +54,8 @@ class DeployDeviceTests(unittest.TestCase):
                 raise subprocess.CalledProcessError(1, command)
             if failure == "signature" and command[:2] == ["codesign", "--verify"]:
                 raise subprocess.CalledProcessError(1, command)
+            if failure == "locked-launch" and command[:4] == ["xcrun", "devicectl", "device", "process"]:
+                raise subprocess.CalledProcessError(1, command, stderr=b"    BSErrorCodeDescription = Locked\n")
             if command[:3] == ["security", "cms", "-D"]:
                 return subprocess.CompletedProcess(command, 0, plistlib.dumps(profile or self.profile))
             return subprocess.CompletedProcess(command, 0, b"")
@@ -157,13 +159,22 @@ class DeployDeviceTests(unittest.TestCase):
             self.assertEqual(self.deployer.main(["deadbeef7"]), 1)
         deploy.assert_not_called()
 
+    def test_locked_launch_defers_and_continues_both_installations(self):
+        with redirect_stdout(io.StringIO()) as output:
+            calls = self.run_deploy(self.deployer.arguments(["both"]), failure="locked-launch")
+        installed = [command[command.index("--device") + 1] for command in calls if "install" in command]
+        self.assertEqual(installed, [self.deployer.DEVICES[name] for name in ("deadbeef7", "deadbeef6")])
+        self.assertEqual(sum("launch" in command for command in calls), 2)
+        self.assertEqual(output.getvalue().count("launch deferred because device is locked"), 2)
+        self.assertNotIn("Installed and launched", output.getvalue())
+
     def test_launch_failure_reports_installed_and_fails(self):
         calls = []
 
         def run(command, **kwargs):
             calls.append(command)
             if command[:4] == ["xcrun", "devicectl", "device", "process"]:
-                raise subprocess.CalledProcessError(1, command)
+                raise subprocess.CalledProcessError(1, command, output=b"BSErrorCodeDescription = RequestDenied\nLocked device advice\n")
             if command[:3] == ["security", "cms", "-D"]:
                 return subprocess.CompletedProcess(command, 0, plistlib.dumps(self.profile))
             return subprocess.CompletedProcess(command, 0, b"")

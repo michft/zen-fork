@@ -16,6 +16,8 @@ profile, installs over the existing app, and launches it. It does not uninstall 
 app, so its data is retained. Each device gets a destination-specific build; the
 second build reuses Xcode's incremental build cache. A failure stops the command
 with a nonzero exit code; any earlier successful device deployment remains installed.
+An explicit iOS `Locked` launch refusal after successful installation is deferred
+verification: the update succeeded, and `both` continues to the other device.
 
 "Update" means updating the installed app from local code. Source pulls, dependency
 upgrades, and new ad-blocking rules are separate tasks. The command does not fetch
@@ -40,7 +42,8 @@ cache. Restore that cache before deploying. See [fork setup and limitations](iph
 
 Defaults match this fork: team `PP97C35JA7`, bundle `net.mich431.ffoxfork.dev`, and
 the known UDIDs of deadbeef7/deadbeef6/Lois-iPad. `Lois-iPad` maps to
-`00008132-000471C02620C01C`; `both` still selects only deadbeef7/deadbeef6.
+`00008132-000471C02620C01C`; `both` still selects only deadbeef7/deadbeef6. Lois is used only when specifically
+requested; ordinary weekly runs ignore it.
 Override signing explicitly when needed:
 
 ```sh
@@ -58,8 +61,18 @@ Xcode may reuse a still-valid profile. The script allows provisioning updates as
 needed and prints the actual embedded expiry; it does not guarantee a new seven-day
 window on every run or remove Personal Team signing limits.
 
-If installation succeeds but launch fails, the script reports that distinction.
-Unlock the device and check Developer Mode. For an untrusted-developer popup, open
+Locked devices can receive app updates when their trusted connection remains
+available, as verified on both deadbeef devices. iOS can still require unlocking
+for pairing, trust or restoring a connection. For new wired connections while
+locked, Apple's optional **Settings > Privacy & Security > Wired Accessories >
+Always Allow** setting permits accessories to connect while locked; it broadens
+accessory access. See [Apple's accessory settings](https://support.apple.com/en-us/111806).
+This setting does not make the foreground launch verified.
+
+If installation succeeds but iOS reports `Locked` for launch, the script reports
+installation success with launch deferred, then continues the next target. Open
+FFox after unlocking for launch/UI verification. Other launch errors still fail.
+For those errors, unlock the device and check Developer Mode. For an untrusted-developer popup, open
 Settings > General > VPN & Device Management > Developer App > Trust/Verify, with
 internet connected. Then open FFox fork dev. The script cannot accept device trust
 prompts for you.
