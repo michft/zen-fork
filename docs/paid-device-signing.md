@@ -60,6 +60,18 @@ Focused translation XCTest passed all 10 tests on iOS 27 Simulator. JavaScript
 security/rule checks passed 7 tests. These checks establish neither physical UI
 acceptance nor complete coverage of embedded Rust binaries.
 
+## Security deployment on 26 October 2026
+
+The weekly build (FFox 157.1 build 1, device families 1 and 2, Xcode 27.1 and
+iPhoneOS 27.1 SDK) was installed on `deadbeef6`; its launch request was refused
+with `Locked`, so launch verification is deferred. `deadbeef7` stayed
+`unavailable` to CoreDevice for 30 minutes, so its update is **incomplete**; rerun
+`./scripts/deploy-device.py deadbeef7 --skip-macro-validation` once it is
+connected and reachable. Xcode 27.1 again required macro approval; the checkout
+was confirmed at the reviewed `ModifiedCopyMacros` revision `d020bf8c6432`
+before using the documented workaround. Signing certificate and profile expiry
+are unchanged from 20 October.
+
 ## Scheduled maintenance
 
 T3 Code tasks post into the original rebuild thread:
@@ -82,6 +94,13 @@ T3 Code tasks post into the original rebuild thread:
   Open or update the michft PR with validation and per-device evidence; do not
   merge automatically. Private signing exports and unapproved public cache
   uploads remain outside this automation.
+
+- Weekly CVE review: **Mondays, 08:00 Sydney**, report-only. Covers Firefox, Zen
+  Browser and every downloaded input, shipped or build-only, at any severity; its
+  applicable findings feed the 09:00 patch/build/deploy run.
+- Daily CVE check: **07:00 Sydney**. Looks for CVSS above 8.0 in shipped code. An
+  applicable unfixed finding immediately starts the weekly patch/build/deploy
+  procedure for that item; build-only tools and OS-provided WebKit never trigger it.
 
 Reschedule the reminder when a later deployment changes the earliest signing
 expiry. The scheduled CVE check is not evidence that a security audit has already

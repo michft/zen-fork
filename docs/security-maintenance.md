@@ -28,6 +28,22 @@ brace-expansion and fast-uri findings were already fixed in the pnpm/installed
 graph. Generated JavaScript remains ignored by Git and must be regenerated with
 `pnpm run build`; builds must use the frozen pnpm lockfile.
 
+## Weekly review 26 October 2026
+
+| Finding | Component | Classification |
+| --- | --- | --- |
+| [GHSA-w74x-v6f9-j3xg](https://github.com/advisories/GHSA-w74x-v6f9-j3xg) (Medium 6.1), [GHSA-wjr9-j795-jxcr](https://github.com/advisories/GHSA-wjr9-j795-jxcr) (Medium 4.8), [GHSA-xhq7-xmqj-769h](https://github.com/advisories/GHSA-xhq7-xmqj-769h), [GHSA-333x-w4r6-6crp](https://github.com/advisories/GHSA-333x-w4r6-6crp) (Low 3.7) | Build-only `fast-uri` 3.1.8 via webpack schema-utils → ajv 8 | Fixed: pnpm override to 3.1.9. `scripts/test-fast-uri-security.mjs` resolves the webpack path and fails on 3.1.8. |
+| [GHSA-cg2g-xh64-v4q7](https://github.com/advisories/GHSA-cg2g-xh64-v4q7) (Critical, CVSS 4.0 9.2), [GHSA-mrv2-3pqr-j5jr](https://github.com/advisories/GHSA-mrv2-3pqr-j5jr) (High 7.6) | Shipped DOMPurify | Fixed by the existing 3.4.17 pin; callers also lack the `SAFE_FOR_TEMPLATES`, DOM-return, `IN_PLACE` and hook preconditions. |
+| CVE-2026-103417, [MFSA 2026-105](https://www.mozilla.org/en-US/security/advisories/mfsa2026-105/) (Moderate) | Firefox for iOS saved-login autofill | Fixed in inherited source: `CredentialAutofillCoordinator` rechecks the selected tab's origin before filling. |
+| [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) (High, CVSS 4.0 8.2) | Build-only `zod` 3.24.4 via agtree 4.2.1 | Unfixed; fix is zod 4.6.6 and agtree 4.3.0 still pins 3.24.4. Only parses this repository's YouTube rules at build time; not shipped. |
+| [GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c) | Build-only `sprintf-js` | Advisory withdrawn; no upstream release. The local precision patch is retained as a harmless guard. |
+
+Firefox 158/ESR advisories (MFSA 2026-106 to 2026-116) target Gecko, the desktop PDF
+viewer, or Firefox's own OneCRL store; this iOS app uses WebKit and Apple trust
+evaluation. Zen Browser's five 2026 advisories affect its desktop updater and UI.
+`taskcluster/requirements.txt` certifi/urllib3 advisories apply only to unused
+upstream CI tooling. iOS/iPadOS 27.0.1 remains the latest release for both devices.
+
 ## cmark backports
 
 `scripts/prepare-down-security.py` checks the exact Down Git revision and SHA-256
@@ -69,6 +85,8 @@ Re-review patches and hashes when updating Down; do not bypass a hash failure.
   not promise to accept every malformed format or unbounded field width.
   `node --test scripts/test-sprintf-security.mjs` exercises both actual dependency
   paths; CI runs it alongside the existing generated-rule checks.
+  GitHub withdrew this advisory on review; the patch remains until an upstream
+  release makes it unnecessary.
 - Glean 69.0.0's source graph contains `idna` 0.3.0 through
   rkv 0.20.0 → url 2.3.1
   ([CVE-2024-12224](https://rustsec.org/advisories/RUSTSEC-2024-0421.html), Moderate;

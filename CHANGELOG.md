@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Override build-only fast-uri to 3.1.9 and record the 26 October weekly security review.
 - Continue updates across locked-device launch refusals; keep Lois-iPad an explicit target.
 - Bind translation language arguments safely, backport formatter precision limits, and require weekly patch/build/device deployment.
 - Update reviewed JavaScript and Swift security dependencies; apply guarded cmark backports during dependency preparation.
