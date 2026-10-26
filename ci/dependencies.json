@@ -1,5 +1,5 @@
 {
-  "release": "build-deps-2026-10-06",
-  "asset": "ffox-ci-dependencies-20261006.tar.gz",
-  "sha256": "672bc6336d0dce61220d09db05848aed86d8d19c14f324add662de92b08295ea"
+  "release": "build-deps-2026-10-19",
+  "asset": "ffox-ci-dependencies-20261019.tar.gz",
+  "sha256": "59685627105b4840268ad668d72e6a2cfdf9582c6ac74628ee1c5feb14a7f5d0"
 }

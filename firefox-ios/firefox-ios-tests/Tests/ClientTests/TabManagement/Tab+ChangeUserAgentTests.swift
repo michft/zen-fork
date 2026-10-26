@@ -6,6 +6,7 @@
 
 import XCTest
 import Common
+import Shared
 
 class ChangeUserAgentTests: XCTestCase {
     struct ChangeUserAgentsMockData {

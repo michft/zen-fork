@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build local FFox code, update signing as needed, install, and launch."""
+"""Build and sign local FFox code, install, and launch when unlocked."""
 
 import argparse
 from datetime import datetime, timezone
@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DEVICES = {
     "deadbeef7": "00008150-00112CC60EF2401C",
     "deadbeef6": "00008122-000928CC2E11001C",
+    "Lois-iPad": "00008132-000471C02620C01C",
 }
 
 
@@ -42,26 +43,27 @@ def arguments(argv=None):
 def deploy(args):
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "/usr/bin/false"}
 
-    def run(command, capture=False):
+    def run(command, capture=False, capture_errors=False):
         command = [str(part) for part in command]
         print("+ " + shlex.join(command), flush=True)
         if args.dry_run:
             return None
         return subprocess.run(command, cwd=ROOT, env=env, check=True,
-                              stdout=subprocess.PIPE if capture else None).stdout
+                              stdout=subprocess.PIPE if capture else None,
+                              stderr=subprocess.PIPE if capture_errors else None).stdout
 
     if not args.dry_run:
         for tool in ("pnpm", "xcodebuild", "xcrun", "codesign", "security"):
             if not shutil.which(tool):
                 raise RuntimeError(f"Missing {tool}. See docs/command-line-deploy.md.")
         if not (ROOT / "node_modules").is_dir():
-            raise RuntimeError("Install JS dependencies first: pnpm install --lockfile=false")
+            raise RuntimeError("Install JS dependencies first: pnpm install --frozen-lockfile")
 
     run(["pnpm", "run", "build"])
     run([sys.executable, ROOT / "scripts/prepare-personal-device.py",
          "--team", args.team, "--bundle-id", args.bundle_id])
     app = ROOT / ".build/DeviceDerivedData/Build/Products/Debug-iphoneos/Client.app"
-    targets = list(DEVICES) if args.device == "both" else [args.device]
+    targets = ["deadbeef7", "deadbeef6"] if args.device == "both" else [args.device]
     for name in targets:
         udid = DEVICES[name]
         print(f"\nBuilding and deploying to {name} ({udid})", flush=True)
@@ -71,7 +73,8 @@ def deploy(args):
             "-derivedDataPath", ROOT / ".build/DeviceDerivedData",
             "-clonedSourcePackagesDirPath", ROOT / ".build/SourcePackages",
             "-scmProvider", "system", "-packageAuthorizationProvider", "netrc",
-            "-skipPackageUpdates", "-allowProvisioningUpdates",
+            "-skipPackageUpdates", "-disableAutomaticPackageResolution",
+            "-onlyUsePackageVersionsFromResolvedFile", "-allowProvisioningUpdates",
             "-allowProvisioningDeviceRegistration",
             f"DEVELOPMENT_TEAM={args.team}", "CODE_SIGN_STYLE=Automatic",
         ]
@@ -100,9 +103,17 @@ def deploy(args):
             print(f"Signing expires: {expiry.astimezone().isoformat(timespec='seconds')}", flush=True)
         run(["xcrun", "devicectl", "device", "install", "app", "--device", udid, app])
         try:
-            run(["xcrun", "devicectl", "device", "process", "launch", "--device", udid,
-                 "--terminate-existing", args.bundle_id])
-        except subprocess.CalledProcessError:
+            launch_output = run(["xcrun", "devicectl", "device", "process", "launch", "--device", udid,
+                                 "--terminate-existing", args.bundle_id], capture=True, capture_errors=True)
+            if launch_output:
+                print(launch_output.decode(errors="replace"), end="")
+        except subprocess.CalledProcessError as error:
+            details = b"\n".join((error.stderr or b"", error.output or b"")).decode(errors="replace")
+            if re.search(r"^\s*BSErrorCodeDescription = Locked\s*$", details, re.MULTILINE):
+                print(f"Installed FFox fork dev on {name}; launch deferred because device is locked.", flush=True)
+                continue
+            if details.strip():
+                print(details, file=sys.stderr)
             print(f"Installed on {name}, but launch failed. Unlock device and check Developer Mode.\n"
                   "For an untrusted-developer popup: Settings > General > VPN & Device Management\n"
                   "> Developer App > Trust/Verify while connected to the internet.", file=sys.stderr)
