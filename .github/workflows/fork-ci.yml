@@ -29,6 +29,7 @@ jobs:
           python3 -m unittest discover -s scripts -p 'test_release_ios.py'
           python3 -m unittest discover -s scripts -p 'test_prepare_ci_dependencies.py'
           python3 -m unittest discover -s scripts -p 'test_prepare_down_security.py'
+          python3 -m unittest discover -s scripts -p 'test_prepare_appservices_sqlite.py'
 
   universal-build:
     if: github.repository == 'michft/zen-fork'
@@ -81,6 +82,7 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts -p 'test_prepare_personal_device.py'
           DOWN_CMARK_INTEGRATION=1 python3 -m unittest discover -s scripts -p 'test_prepare_down_security.py'
+          APPSERVICES_SQLITE_INTEGRATION=1 python3 -m unittest discover -s scripts -p 'test_prepare_appservices_sqlite.py'
       - name: Archive universal unsigned Release app
         run: |
           python3 scripts/release-ios.py \

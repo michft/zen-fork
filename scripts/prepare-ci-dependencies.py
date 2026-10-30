@@ -28,10 +28,11 @@ REQUIRED_INPUTS = (
 
 
 def apply_security_patches(root):
-    spec = importlib.util.spec_from_file_location("prepare_down_security", Path(__file__).with_name("prepare-down-security.py"))
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    module.apply(root)
+    for name in ("prepare-down-security.py", "prepare-appservices-sqlite.py"):
+        spec = importlib.util.spec_from_file_location(name[:-3].replace("-", "_"), Path(__file__).with_name(name))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.apply(root)
 
 
 def safe_path(name):
