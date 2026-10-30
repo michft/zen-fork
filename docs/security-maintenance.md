@@ -44,6 +44,41 @@ evaluation. Zen Browser's five 2026 advisories affect its desktop updater and UI
 `taskcluster/requirements.txt` certifi/urllib3 advisories apply only to unused
 upstream CI tooling. iOS/iPadOS 27.0.1 remains the latest release for both devices.
 
+## App Services SQLite, 31 October 2026
+
+| Finding | Component | Classification |
+| --- | --- | --- |
+| [CVE-2026-11822 / GHSA-6qj8-gw6p-hc5p](https://github.com/advisories/GHSA-6qj8-gw6p-hc5p) (High, CVSS 4.0 8.5), [CVE-2026-119374 / GHSA-gr85-mf7f-6pq7](https://github.com/advisories/GHSA-gr85-mf7f-6pq7) (8.5), [CVE-2026-119373 / GHSA-mw7g-h5m4-mrxh](https://github.com/advisories/GHSA-mw7g-h5m4-mrxh) (8.5) | SQLite 3.50.2 with FTS5, statically linked into App Services 158.0.20260911050252; Suggest uses FTS5 (`amp_fts`, `fakespot_fts`) | Fixed in fork: SQLite rebuilt as 3.54.1. Exploitation needed a crafted database or `detail=none` table; the Suggest database is app-private. |
+| [CVE-2026-119379 / GHSA-6w9f-4x4x-x559](https://github.com/advisories/GHSA-6w9f-4x4x-x559), [CVE-2026-119586 / GHSA-2h5x-4qp8-353h](https://github.com/advisories/GHSA-2h5x-4qp8-353h) (8.5) | SQLite session extension / command-line shell | Not applicable: neither is compiled into or shipped with the app; also fixed by 3.54.1. |
+| Same FTS5 CVEs | Glean 69.0.0 dynamic framework, separate SQLite 3.50.2 | Unfixed, not reachable: Glean only creates its `telemetry` table and issues no FTS5 SQL. Needs a glean-swift release with SQLite ≥3.54.0. |
+
+Application Services main still pins `libsqlite3-sys` 0.35.0 (SQLite 3.50.x), so no
+upstream release fixes this. `scripts/prepare-appservices-sqlite.py` verifies the
+pinned xcframework's per-slice SHA-256, the tracked sqlite.org 3.54.1 amalgamation's
+published SHA3-256, and the exact App Services SQLite archive member. It compiles
+the amalgamation with libsqlite3-sys 0.35.0's bundled flags plus `unlock_notify`
+for each architecture, requires identical compile options (except 3.54's new
+`MAX_SCHEMA` default) and a superset of exported symbols, replaces only that
+member, and verifies every other archive member is retained. Rebuilding 3.50.2
+with the same flags reproduced the shipped object's compile options and exports.
+Unknown libraries fail closed; already-patched libraries are accepted.
+
+Device and CI preparation run it with the cmark backports. Run it directly after
+resolving or restoring packages for other builds:
+
+```sh
+python3 scripts/prepare-appservices-sqlite.py
+python3 -m unittest scripts/test_prepare_appservices_sqlite.py
+APPSERVICES_SQLITE_INTEGRATION=1 python3 -m unittest scripts/test_prepare_appservices_sqlite.py
+```
+
+The integration tests rebuild copies of the real libraries and run SQLite's own
+FTS5 negative-rowid regression plus App Services-style `amp_fts` operations under
+AddressSanitizer. The same regression overflows the heap on 3.50.2 and returns 56
+rows cleanly on 3.54.1. A full App Services source rebuild was not used: its NSS
+build step was not permitted in this environment. Retire this replacement when
+an App Services release bundles SQLite ≥3.54.0.
+
 ## cmark backports
 
 `scripts/prepare-down-security.py` checks the exact Down Git revision and SHA-256
@@ -106,9 +141,11 @@ Re-review patches and hashes when updating Down; do not bypass a hash failure.
   rebuild requires matching Glean 69 Rust source/Cargo.lock, fixed anyhow source,
   iOS Rust targets and complete offline crate/parser inputs, absent locally.
   Unmaintained bincode and other opaque transitive versions remain coverage gaps.
-- Mozilla Application Services 158.0.20260911050252 contains Rust/NSS/NSPR/SQLite
-  components without a binary-specific version/feature SBOM. These binaries were
-  retained. Changing Swift package metadata cannot patch their embedded code.
+- Mozilla Application Services 158.0.20260911050252 contains Rust/NSS/NSPR
+  components without a binary-specific version/feature SBOM; only its SQLite object
+  is replaced (see above). Its source `Cargo.lock` pins `zip` 2.3.0, matching
+  [CVE-2026-115905](https://github.com/advisories/GHSA-m665-v7pm-7grj) and related
+  advisories, but `zip` is not in the `megazord_ios` runtime graph.
 - Nested Glean locks and GCDWebServer pins differ across projects. Vendored code,
   Sentry CLI 1.73.0 transitives, and separately vendored BoringSSL remain partly
   unverified. Fuzi's system libxml2 and WKWebView/WebKit depend on device OS updates.

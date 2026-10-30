@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Override build-only fast-uri to 3.1.9 and record the 26 October weekly security review.
+- Rebuild App Services' bundled SQLite as 3.54.1 to fix FTS5 heap overflows (CVE-2026-11822, CVE-2026-119373, CVE-2026-119374).
 - Continue updates across locked-device launch refusals; keep Lois-iPad an explicit target.
 - Bind translation language arguments safely, backport formatter precision limits, and require weekly patch/build/device deployment.
 - Update reviewed JavaScript and Swift security dependencies; apply guarded cmark backports during dependency preparation.

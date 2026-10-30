@@ -72,6 +72,16 @@ was confirmed at the reviewed `ModifiedCopyMacros` revision `d020bf8c6432`
 before using the documented workaround. Signing certificate and profile expiry
 are unchanged from 20 October.
 
+## Security deployment on 31 October 2026
+
+The on-demand security build (FFox 157.1 build 1, Xcode 27.1, iPhoneOS 27.1 SDK)
+links App Services with SQLite 3.54.1 in place of 3.50.2 (see
+[security maintenance](security-maintenance.md)). The built app's
+`RustMozillaAppServices` contains only the 3.54.1 source ID; Glean keeps its own
+3.50.2 copy. It was installed on `deadbeef7` and `deadbeef6`; both launch requests
+were refused with `Locked`, so launch verification is deferred. Codesign
+verification passed; signing expiry is unchanged.
+
 ## Scheduled maintenance
 
 T3 Code tasks post into the original rebuild thread:
