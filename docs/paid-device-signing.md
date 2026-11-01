@@ -80,7 +80,21 @@ links App Services with SQLite 3.54.1 in place of 3.50.2 (see
 `RustMozillaAppServices` contains only the 3.54.1 source ID; Glean keeps its own
 3.50.2 copy. It was installed on `deadbeef7` and `deadbeef6`; both launch requests
 were refused with `Locked`, so launch verification is deferred. Codesign
-verification passed; signing expiry is unchanged.
+verification passed; signing expiry is unchanged. A same-day rebuild, after the
+pinned `ModifiedCopyMacros` revision was approved in Xcode, installed and launched
+on both devices.
+
+## Weekly deployment on 2 November 2026
+
+The weekly build (FFox 157.1 build 1, Xcode 27.1, iPhoneOS 27.1 SDK) drops the
+build-only glob/minimatch path; generated user scripts are byte-identical. It still
+links App Services with only SQLite 3.54.1. Codesign verification passed; the
+Apple Development certificate expires 15 September 2027 and the profile
+18 October 2027. `deadbeef7` (iOS 27.2) installed it at a new bundle container;
+launch was refused with `Locked` and is deferred. `deadbeef6` (iPadOS 27.2) is
+**incomplete**: it was locked, so CoreDevice could not enable development
+services, and the build and a direct install of the universal app both failed.
+Rerun `./scripts/deploy-device.py deadbeef6` after unlocking it.
 
 ## Scheduled maintenance
 

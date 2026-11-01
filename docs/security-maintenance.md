@@ -79,6 +79,27 @@ rows cleanly on 3.54.1. A full App Services source rebuild was not used: its NSS
 build step was not permitted in this environment. Retire this replacement when
 an App Services release bundles SQLite ≥3.54.0.
 
+## Weekly review 2 November 2026
+
+OSV was queried for every pinned npm, Swift and App Services crate version, not only
+advisories changed since the previous run.
+
+| Finding | Component | Classification |
+| --- | --- | --- |
+| [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) (CVE-2026-118764, Moderate, CVSS 4.0 6.9) | Build-only `minimatch` 5.1.9 via `glob` 8.1.0, used only by `webpack.config.js` | Fixed: `glob` removed. The config lists each user-script directory with `fs.readdirSync` using glob 8's `en` locale ordering; entry lists and generated bundles are byte-identical. `scripts/test-webpack-entries.mjs` checks ordering, entries and the absent packages. Patterns were repository-controlled, so it was not exploitable. |
+| [RUSTSEC-2026-0258](https://rustsec.org/advisories/RUSTSEC-2026-0258.html) (empty DATA frames) | Shipped `h2` 0.3.26 via hyper 0.14.27 / viaduct-hyper | Not applicable: `Viaduct.initialize` selects the hyper backend, but hyper-tls 0.5.0 negotiates no ALPN and viaduct-hyper never forces HTTP/2, so connections stay HTTP/1.1. Fixed only in h2 0.4.16. |
+| [CVE-2026-44983 / GHSA-97wc-2hqc-cjgr](https://github.com/advisories/GHSA-97wc-2hqc-cjgr) (High, no fix) | Shipped `smallbitvec` 2.5.1 via dogear 0.5.0 | Not applicable: dogear sizes vectors by bookmark count (`from_elem(entries.len())`); the overflow needs a length near `usize::MAX`. |
+| [RUSTSEC-2026-0386](https://rustsec.org/advisories/RUSTSEC-2026-0386.html), [GHSA-rr8g-9fpq-6wmg](https://github.com/advisories/GHSA-rr8g-9fpq-6wmg) (Low) | Shipped `tokio` 1.29.1 | Not applicable: hyper, h2, hyper-tls and viaduct-hyper use neither `AsyncFd` nor broadcast channels. |
+| [GHSA-cq8v-f236-94qc](https://github.com/advisories/GHSA-cq8v-f236-94qc) (Low) | Shipped `rand` 0.8.5 | Not applicable: rand's `log` feature is disabled in the iOS graph. |
+| [CVE-2024-43806 / GHSA-c827-hfw6-qwvm](https://github.com/advisories/GHSA-c827-hfw6-qwvm) (Moderate) | Shipped `rustix` 0.36.7 | Not applicable: only the `linux_raw` backend is affected; the iOS binary contains the libc backend. |
+| [RUSTSEC-2026-0190](https://rustsec.org/advisories/RUSTSEC-2026-0190.html) (Informational) | Shipped `anyhow` 1.0.58 in App Services | Unverified: App Services sources never call `downcast_mut`; other compiled crates were not audited. |
+
+Other matched App Services crates (openssl, zip, zstd, unsafe-libyaml, yaml-rust,
+oneshot, cxx, memmap2, instant, number_prefix, basic-toml) are outside the
+`megazord_ios` aarch64-apple-ios runtime graph. `zod` 3.24.4 remains unfixed and
+build-only (agtree 4.3.0 still pins it). No new Mozilla, Zen or RustSec items; both
+default devices run iOS/iPadOS 27.2 (24B119), covering the 27.2 WebKit fixes.
+
 ## cmark backports
 
 `scripts/prepare-down-security.py` checks the exact Down Git revision and SHA-256
