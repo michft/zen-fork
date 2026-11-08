@@ -100,6 +100,23 @@ oneshot, cxx, memmap2, instant, number_prefix, basic-toml) are outside the
 build-only (agtree 4.3.0 still pins it). No new Mozilla, Zen or RustSec items; both
 default devices run iOS/iPadOS 27.2 (24B119), covering the 27.2 WebKit fixes.
 
+## Weekly review 9 November 2026
+
+OSV was queried for all 775 current pins (npm 263, Rust 482, versioned Swift 25).
+SnapKit 5.7.0 and Focus-only SwiftDraw 0.18.3 were added to the reviewed pin list;
+neither has an advisory. No new finding applies.
+
+| Finding | Component | Classification |
+| --- | --- | --- |
+| [RUSTSEC-2026-0441](https://rustsec.org/advisories/RUSTSEC-2026-0441.html) (Informational, unmaintained) | Shipped `pin-utils` 0.1.0 via futures-util in App Services | Not applicable: no vulnerability or affected functions. |
+| [CVE-2026-115909 / RUSTSEC-2026-0429](https://rustsec.org/advisories/RUSTSEC-2026-0429.html) | `zip` 2.3.0 in the App Services source lock | Not applicable: outside the `megazord_ios` runtime graph. |
+| CVE-2026-120572, [MFSA 2026-123](https://www.mozilla.org/en-US/security/advisories/mfsa2026-123/) (High) | Firefox 159.0.1 Gecko layout | Not applicable: the app uses WebKit. |
+| CVE-2026-83596, CVE-2026-78376 (CVSS 8.8) | WebKitGTK | Unverified: no Apple mapping. WebKit comes from the device OS; iOS/iPadOS 27.2 (29 October) is the latest release. |
+
+Zen Browser 1.24.1b added no advisories. The Down cmark backports and SQLite 3.54.1
+replacement still verify; Down has no upstream release since 0.11.0, so the cmark
+patches stay. `zod` 3.24.4 remains build-only and unfixed.
+
 ## cmark backports
 
 `scripts/prepare-down-security.py` checks the exact Down Git revision and SHA-256
