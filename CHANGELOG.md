@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Backport Firefox for iOS 160 fixes for the Reader View CSP (CVE-2026-121842) and download/document filename traversal (CVE-2026-121843, CVE-2026-121841).
 - Remove the build-only sprintf-js patch now that its advisory (GHSA-hp3w-g68c-fv3c) is withdrawn.
 - Drop build-only glob/minimatch (GHSA-g3hv-75wg-m249) from the webpack config and record the 2 and 9 November weekly security reviews.
 - Override build-only fast-uri to 3.1.9 and record the 26 October weekly security review.
