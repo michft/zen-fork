@@ -36,13 +36,105 @@ graph. Generated JavaScript remains ignored by Git and must be regenerated with
 | [GHSA-cg2g-xh64-v4q7](https://github.com/advisories/GHSA-cg2g-xh64-v4q7) (Critical, CVSS 4.0 9.2), [GHSA-mrv2-3pqr-j5jr](https://github.com/advisories/GHSA-mrv2-3pqr-j5jr) (High 7.6) | Shipped DOMPurify | Fixed by the existing 3.4.17 pin; callers also lack the `SAFE_FOR_TEMPLATES`, DOM-return, `IN_PLACE` and hook preconditions. |
 | CVE-2026-103417, [MFSA 2026-105](https://www.mozilla.org/en-US/security/advisories/mfsa2026-105/) (Moderate) | Firefox for iOS saved-login autofill | Fixed in inherited source: `CredentialAutofillCoordinator` rechecks the selected tab's origin before filling. |
 | [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) (High, CVSS 4.0 8.2) | Build-only `zod` 3.24.4 via agtree 4.2.1 | Unfixed; fix is zod 4.6.6 and agtree 4.3.0 still pins 3.24.4. Only parses this repository's YouTube rules at build time; not shipped. |
-| [GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c) | Build-only `sprintf-js` | Advisory withdrawn; no upstream release. The local precision patch is retained as a harmless guard. |
+| [GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c) | Build-only `sprintf-js` | Advisory withdrawn because handling the exception is the application's responsibility; no upstream release. The local precision patch has since been removed: format strings are not attacker-controlled, and the worst case is a failed local build. |
 
 Firefox 158/ESR advisories (MFSA 2026-106 to 2026-116) target Gecko, the desktop PDF
 viewer, or Firefox's own OneCRL store; this iOS app uses WebKit and Apple trust
 evaluation. Zen Browser's five 2026 advisories affect its desktop updater and UI.
 `taskcluster/requirements.txt` certifi/urllib3 advisories apply only to unused
 upstream CI tooling. iOS/iPadOS 27.0.1 remains the latest release for both devices.
+
+## App Services SQLite, 31 October 2026
+
+| Finding | Component | Classification |
+| --- | --- | --- |
+| [CVE-2026-11822 / GHSA-6qj8-gw6p-hc5p](https://github.com/advisories/GHSA-6qj8-gw6p-hc5p) (High, CVSS 4.0 8.5), [CVE-2026-119374 / GHSA-gr85-mf7f-6pq7](https://github.com/advisories/GHSA-gr85-mf7f-6pq7) (8.5), [CVE-2026-119373 / GHSA-mw7g-h5m4-mrxh](https://github.com/advisories/GHSA-mw7g-h5m4-mrxh) (8.5) | SQLite 3.50.2 with FTS5, statically linked into App Services 158.0.20260911050252; Suggest uses FTS5 (`amp_fts`, `fakespot_fts`) | Fixed in fork: SQLite rebuilt as 3.54.1. Exploitation needed a crafted database or `detail=none` table; the Suggest database is app-private. |
+| [CVE-2026-119379 / GHSA-6w9f-4x4x-x559](https://github.com/advisories/GHSA-6w9f-4x4x-x559), [CVE-2026-119586 / GHSA-2h5x-4qp8-353h](https://github.com/advisories/GHSA-2h5x-4qp8-353h) (8.5) | SQLite session extension / command-line shell | Not applicable: neither is compiled into or shipped with the app; also fixed by 3.54.1. |
+| Same FTS5 CVEs | Glean 69.0.0 dynamic framework, separate SQLite 3.50.2 | Unfixed, not reachable: Glean only creates its `telemetry` table and issues no FTS5 SQL. Needs a glean-swift release with SQLite ≥3.54.0. |
+
+Application Services main still pins `libsqlite3-sys` 0.35.0 (SQLite 3.50.x), so no
+upstream release fixes this. `scripts/prepare-appservices-sqlite.py` verifies the
+pinned xcframework's per-slice SHA-256, the tracked sqlite.org 3.54.1 amalgamation's
+published SHA3-256, and the exact App Services SQLite archive member. It compiles
+the amalgamation with libsqlite3-sys 0.35.0's bundled flags plus `unlock_notify`
+for each architecture, requires identical compile options (except 3.54's new
+`MAX_SCHEMA` default) and a superset of exported symbols, replaces only that
+member, and verifies every other archive member is retained. Rebuilding 3.50.2
+with the same flags reproduced the shipped object's compile options and exports.
+Unknown libraries fail closed; already-patched libraries are accepted.
+
+Device and CI preparation run it with the cmark backports. Run it directly after
+resolving or restoring packages for other builds:
+
+```sh
+python3 scripts/prepare-appservices-sqlite.py
+python3 -m unittest scripts/test_prepare_appservices_sqlite.py
+APPSERVICES_SQLITE_INTEGRATION=1 python3 -m unittest scripts/test_prepare_appservices_sqlite.py
+```
+
+The integration tests rebuild copies of the real libraries and run SQLite's own
+FTS5 negative-rowid regression plus App Services-style `amp_fts` operations under
+AddressSanitizer. The same regression overflows the heap on 3.50.2 and returns 56
+rows cleanly on 3.54.1. A full App Services source rebuild was not used: its NSS
+build step was not permitted in this environment. Retire this replacement when
+an App Services release bundles SQLite ≥3.54.0.
+
+## Firefox for iOS 160 backports, 10 November 2026
+
+[MFSA 2026-124](https://www.mozilla.org/en-US/security/advisories/mfsa2026-124/)
+fixed three Firefox for iOS bugs in 160. This fork's 157.1 snapshot (6 October)
+predates both upstream fixes, and both applied to unchanged fork code.
+
+| Finding | Component | Classification |
+| --- | --- | --- |
+| [CVE-2026-121842 / GHSA-347w-cc86-vh56](https://github.com/advisories/GHSA-347w-cc86-vh56) (High, CVSS 3.1 8.8, `AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H`) | Reader View Content Security Policy | Fixed in fork: backport of upstream [a5b76b0](https://github.com/mozilla-mobile/firefox-ios/commit/a5b76b0f04348bf8dcf15c054d29e6ce7299b27c). The localhost Reader View handlers sent a multi-line CSP, which CFNetwork drops, so readerized pages had no CSP. `ReaderModeUtils.contentSecurityPolicy` now builds one single-line policy for all three handlers. |
+| [CVE-2026-121843 / GHSA-cpfc-xvc3-69fq](https://github.com/advisories/GHSA-cpfc-xvc3-69fq) (High, CVSS 3.1 8.8, same vector), CVE-2026-121841 (Moderate, unscored) | Download, temporary document and share-file names | Fixed in fork: backport of upstream [55f7093](https://github.com/mozilla-mobile/firefox-ios/commit/55f7093a7d980bdada80d0297cc1319f84d18491). Server-suggested names, blob names and URL path components (including decoded `%2F`) could contain `../`, writing or removing files outside Downloads or the temporary directory. `FilenameSanitizer` keeps one safe path component, and each write site checks containment. |
+
+Upstream tests came across unchanged, except that the HTTP download test was moved
+into the fork's `DownloadTests`, whose `HTTPDownloadTests` class does not exist.
+iOS/iPadOS 27.2.1 (9 November) has no WebKit fixes.
+[CVE-2026-119375 / RUSTSEC-2026-0459](https://rustsec.org/advisories/RUSTSEC-2026-0459.html)
+(SQLite WAL page-size disclosure, CVSS 4.0 6.8) is fixed by the SQLite 3.54.1
+replacement; the `openssl` crate advisory RUSTSEC-2026-0463 is outside the
+`megazord_ios` runtime graph.
+
+## Weekly review 2 November 2026
+
+OSV was queried for every pinned npm, Swift and App Services crate version, not only
+advisories changed since the previous run.
+
+| Finding | Component | Classification |
+| --- | --- | --- |
+| [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) (CVE-2026-118764, Moderate, CVSS 4.0 6.9) | Build-only `minimatch` 5.1.9 via `glob` 8.1.0, used only by `webpack.config.js` | Fixed: `glob` removed. The config lists each user-script directory with `fs.readdirSync` using glob 8's `en` locale ordering; entry lists and generated bundles are byte-identical. `scripts/test-webpack-entries.mjs` checks ordering, entries and the absent packages. Patterns were repository-controlled, so it was not exploitable. |
+| [RUSTSEC-2026-0258](https://rustsec.org/advisories/RUSTSEC-2026-0258.html) (empty DATA frames) | Shipped `h2` 0.3.26 via hyper 0.14.27 / viaduct-hyper | Not applicable: `Viaduct.initialize` selects the hyper backend, but hyper-tls 0.5.0 negotiates no ALPN and viaduct-hyper never forces HTTP/2, so connections stay HTTP/1.1. Fixed only in h2 0.4.16. |
+| [CVE-2026-44983 / GHSA-97wc-2hqc-cjgr](https://github.com/advisories/GHSA-97wc-2hqc-cjgr) (High, no fix) | Shipped `smallbitvec` 2.5.1 via dogear 0.5.0 | Not applicable: dogear sizes vectors by bookmark count (`from_elem(entries.len())`); the overflow needs a length near `usize::MAX`. |
+| [RUSTSEC-2026-0386](https://rustsec.org/advisories/RUSTSEC-2026-0386.html), [GHSA-rr8g-9fpq-6wmg](https://github.com/advisories/GHSA-rr8g-9fpq-6wmg) (Low) | Shipped `tokio` 1.29.1 | Not applicable: hyper, h2, hyper-tls and viaduct-hyper use neither `AsyncFd` nor broadcast channels. |
+| [GHSA-cq8v-f236-94qc](https://github.com/advisories/GHSA-cq8v-f236-94qc) (Low) | Shipped `rand` 0.8.5 | Not applicable: rand's `log` feature is disabled in the iOS graph. |
+| [CVE-2024-43806 / GHSA-c827-hfw6-qwvm](https://github.com/advisories/GHSA-c827-hfw6-qwvm) (Moderate) | Shipped `rustix` 0.36.7 | Not applicable: only the `linux_raw` backend is affected; the iOS binary contains the libc backend. |
+| [RUSTSEC-2026-0190](https://rustsec.org/advisories/RUSTSEC-2026-0190.html) (Informational) | Shipped `anyhow` 1.0.58 in App Services | Unverified: App Services sources never call `downcast_mut`; other compiled crates were not audited. |
+
+Other matched App Services crates (openssl, zip, zstd, unsafe-libyaml, yaml-rust,
+oneshot, cxx, memmap2, instant, number_prefix, basic-toml) are outside the
+`megazord_ios` aarch64-apple-ios runtime graph. `zod` 3.24.4 remains unfixed and
+build-only (agtree 4.3.0 still pins it). No new Mozilla, Zen or RustSec items; both
+default devices run iOS/iPadOS 27.2 (24B119), covering the 27.2 WebKit fixes.
+
+## Weekly review 9 November 2026
+
+OSV was queried for all 775 current pins (npm 263, Rust 482, versioned Swift 25).
+SnapKit 5.7.0 and Focus-only SwiftDraw 0.18.3 were added to the reviewed pin list;
+neither has an advisory. No new finding applies.
+
+| Finding | Component | Classification |
+| --- | --- | --- |
+| [RUSTSEC-2026-0441](https://rustsec.org/advisories/RUSTSEC-2026-0441.html) (Informational, unmaintained) | Shipped `pin-utils` 0.1.0 via futures-util in App Services | Not applicable: no vulnerability or affected functions. |
+| [CVE-2026-115909 / RUSTSEC-2026-0429](https://rustsec.org/advisories/RUSTSEC-2026-0429.html) | `zip` 2.3.0 in the App Services source lock | Not applicable: outside the `megazord_ios` runtime graph. |
+| CVE-2026-120572, [MFSA 2026-123](https://www.mozilla.org/en-US/security/advisories/mfsa2026-123/) (High) | Firefox 159.0.1 Gecko layout | Not applicable: the app uses WebKit. |
+| CVE-2026-83596, CVE-2026-78376 (CVSS 8.8) | WebKitGTK | Unverified: no Apple mapping. WebKit comes from the device OS; iOS/iPadOS 27.2 (29 October) is the latest release. |
+
+Zen Browser 1.24.1b added no advisories. The Down cmark backports and SQLite 3.54.1
+replacement still verify; Down has no upstream release since 0.11.0, so the cmark
+patches stay. `zod` 3.24.4 remains build-only and unfixed.
 
 ## cmark backports
 
@@ -75,18 +167,6 @@ Re-review patches and hashes when updating Down; do not bypass a hash failure.
 
 ## Remaining findings and coverage gaps
 
-- Build-only `sprintf-js` 1.0.3 / 1.1.3 matches Moderate
-  [CVE-2026-97058 / GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c).
-  No upstream fix is published. Tracked pnpm patches bound numeric `e`/`f`
-  precision to 0–100 and `g` precision to 1–100, preventing the numeric-method
-  RangeError while preserving every valid precision output. Excessive precision
-  now uses the nearest supported bound. This is a local compatibility backport;
-  advisory databases still match the unchanged package versions. The patches do
-  not promise to accept every malformed format or unbounded field width.
-  `node --test scripts/test-sprintf-security.mjs` exercises both actual dependency
-  paths; CI runs it alongside the existing generated-rule checks.
-  GitHub withdrew this advisory on review; the patch remains until an upstream
-  release makes it unnecessary.
 - Glean 69.0.0's source graph contains `idna` 0.3.0 through
   rkv 0.20.0 → url 2.3.1
   ([CVE-2024-12224](https://rustsec.org/advisories/RUSTSEC-2024-0421.html), Moderate;
@@ -106,9 +186,11 @@ Re-review patches and hashes when updating Down; do not bypass a hash failure.
   rebuild requires matching Glean 69 Rust source/Cargo.lock, fixed anyhow source,
   iOS Rust targets and complete offline crate/parser inputs, absent locally.
   Unmaintained bincode and other opaque transitive versions remain coverage gaps.
-- Mozilla Application Services 158.0.20260911050252 contains Rust/NSS/NSPR/SQLite
-  components without a binary-specific version/feature SBOM. These binaries were
-  retained. Changing Swift package metadata cannot patch their embedded code.
+- Mozilla Application Services 158.0.20260911050252 contains Rust/NSS/NSPR
+  components without a binary-specific version/feature SBOM; only its SQLite object
+  is replaced (see above). Its source `Cargo.lock` pins `zip` 2.3.0, matching
+  [CVE-2026-115905](https://github.com/advisories/GHSA-m665-v7pm-7grj) and related
+  advisories, but `zip` is not in the `megazord_ios` runtime graph.
 - Nested Glean locks and GCDWebServer pins differ across projects. Vendored code,
   Sentry CLI 1.73.0 transitives, and separately vendored BoringSSL remain partly
   unverified. Fuzi's system libxml2 and WKWebView/WebKit depend on device OS updates.
