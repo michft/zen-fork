@@ -79,6 +79,25 @@ rows cleanly on 3.54.1. A full App Services source rebuild was not used: its NSS
 build step was not permitted in this environment. Retire this replacement when
 an App Services release bundles SQLite ≥3.54.0.
 
+## Firefox for iOS 160 backports, 10 November 2026
+
+[MFSA 2026-124](https://www.mozilla.org/en-US/security/advisories/mfsa2026-124/)
+fixed three Firefox for iOS bugs in 160. This fork's 157.1 snapshot (6 October)
+predates both upstream fixes, and both applied to unchanged fork code.
+
+| Finding | Component | Classification |
+| --- | --- | --- |
+| [CVE-2026-121842 / GHSA-347w-cc86-vh56](https://github.com/advisories/GHSA-347w-cc86-vh56) (High, CVSS 3.1 8.8, `AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H`) | Reader View Content Security Policy | Fixed in fork: backport of upstream [a5b76b0](https://github.com/mozilla-mobile/firefox-ios/commit/a5b76b0f04348bf8dcf15c054d29e6ce7299b27c). The localhost Reader View handlers sent a multi-line CSP, which CFNetwork drops, so readerized pages had no CSP. `ReaderModeUtils.contentSecurityPolicy` now builds one single-line policy for all three handlers. |
+| [CVE-2026-121843 / GHSA-cpfc-xvc3-69fq](https://github.com/advisories/GHSA-cpfc-xvc3-69fq) (High, CVSS 3.1 8.8, same vector), CVE-2026-121841 (Moderate, unscored) | Download, temporary document and share-file names | Fixed in fork: backport of upstream [55f7093](https://github.com/mozilla-mobile/firefox-ios/commit/55f7093a7d980bdada80d0297cc1319f84d18491). Server-suggested names, blob names and URL path components (including decoded `%2F`) could contain `../`, writing or removing files outside Downloads or the temporary directory. `FilenameSanitizer` keeps one safe path component, and each write site checks containment. |
+
+Upstream tests came across unchanged, except that the HTTP download test was moved
+into the fork's `DownloadTests`, whose `HTTPDownloadTests` class does not exist.
+iOS/iPadOS 27.2.1 (9 November) has no WebKit fixes.
+[CVE-2026-119375 / RUSTSEC-2026-0459](https://rustsec.org/advisories/RUSTSEC-2026-0459.html)
+(SQLite WAL page-size disclosure, CVSS 4.0 6.8) is fixed by the SQLite 3.54.1
+replacement; the `openssl` crate advisory RUSTSEC-2026-0463 is outside the
+`megazord_ios` runtime graph.
+
 ## Weekly review 2 November 2026
 
 OSV was queried for every pinned npm, Swift and App Services crate version, not only
