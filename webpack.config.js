@@ -1,38 +1,28 @@
-const glob = require("glob");
+const fs = require("fs");
 const path = require("path");
 const webpack = require("webpack");
 const Overrides = require("./firefox-ios/Client/Assets/CC_Script/Overrides.ios.js");
 
-const AllFramesAtDocumentStart = glob.sync(
-  "./firefox-ios/Client/Frontend/UserContent/UserScripts/AllFrames/AtDocumentStart/*.{js,mjs}"
-);
-const AllFramesAtDocumentEnd = glob.sync(
-  "./firefox-ios/Client/Frontend/UserContent/UserScripts/AllFrames/AtDocumentEnd/*.{js,mjs}"
-);
-const MainFrameAtDocumentStart = glob.sync(
-  "./firefox-ios/Client/Frontend/UserContent/UserScripts/MainFrame/AtDocumentStart/*.{js,mjs}"
-);
-const MainFrameAtDocumentEnd = glob.sync(
-  "./firefox-ios/Client/Frontend/UserContent/UserScripts/MainFrame/AtDocumentEnd/*.{js,mjs}"
-);
-const WebcompatAllFramesAtDocumentStart = glob.sync(
-  "./firefox-ios/Client/Frontend/UserContent/UserScripts/AllFrames/WebcompatAtDocumentStart/*.{js,mjs}"
-);
-const AutofillAllFramesAtDocumentStart = glob.sync(
-  "./firefox-ios/Client/Frontend/UserContent/UserScripts/AllFrames/AutofillAtDocumentStart/*.{js,mjs}"
-);
-const NightModeAllFramesAtDocumentStart = glob.sync(
-  "./firefox-ios/Client/Frontend/UserContent/UserScripts/AllFrames/NightModeAtDocumentStart/*.{js,mjs}"
-);
-const AddressFormManager = glob.sync(
-  "./firefox-ios/Client/Frontend/UserContent/UserScripts/AddressFormManager/*.{js,mjs}"
-);
-const TranslationsEngine = glob.sync(
-  "./firefox-ios/Client/Frontend/UserContent/UserScripts/TranslationsEngine/*.{js,mjs}"
-);
-const TranslationsEngineWorker = glob.sync(
-  "./firefox-ios/Client/Assets/CC_Script/translations-engine.worker.js"
-);
+// Matches glob 8's `<directory>/*.{js,mjs}` results and en-locale ordering.
+const userScripts = (directory) =>
+  fs
+    .readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && !entry.name.startsWith(".") && /\.m?js$/.test(entry.name))
+    .map((entry) => `${directory}/${entry.name}`)
+    .sort((a, b) => a.localeCompare(b, "en"));
+
+const AllFramesAtDocumentStart = userScripts("./firefox-ios/Client/Frontend/UserContent/UserScripts/AllFrames/AtDocumentStart");
+const AllFramesAtDocumentEnd = userScripts("./firefox-ios/Client/Frontend/UserContent/UserScripts/AllFrames/AtDocumentEnd");
+const MainFrameAtDocumentStart = userScripts("./firefox-ios/Client/Frontend/UserContent/UserScripts/MainFrame/AtDocumentStart");
+const MainFrameAtDocumentEnd = userScripts("./firefox-ios/Client/Frontend/UserContent/UserScripts/MainFrame/AtDocumentEnd");
+const WebcompatAllFramesAtDocumentStart = userScripts("./firefox-ios/Client/Frontend/UserContent/UserScripts/AllFrames/WebcompatAtDocumentStart");
+const AutofillAllFramesAtDocumentStart = userScripts("./firefox-ios/Client/Frontend/UserContent/UserScripts/AllFrames/AutofillAtDocumentStart");
+const NightModeAllFramesAtDocumentStart = userScripts("./firefox-ios/Client/Frontend/UserContent/UserScripts/AllFrames/NightModeAtDocumentStart");
+const AddressFormManager = userScripts("./firefox-ios/Client/Frontend/UserContent/UserScripts/AddressFormManager");
+const TranslationsEngine = userScripts("./firefox-ios/Client/Frontend/UserContent/UserScripts/TranslationsEngine");
+const TranslationsEngineWorker = [
+  "./firefox-ios/Client/Assets/CC_Script/translations-engine.worker.js",
+];
 
 // Ensure the first script loaded at document start is __firefox__.js
 // since it defines the `window.__firefox__` global.
