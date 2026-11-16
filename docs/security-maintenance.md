@@ -139,6 +139,9 @@ The Down cmark backports and SQLite 3.54.1 replacement still verify; Down has ha
 no upstream release and SQLite 3.54.1 is current. `zod` 3.24.4 remains build-only
 and unfixed (agtree still requires zod 3).
 
+A second run that afternoon found no new or changed advisories (GitHub, RustSec,
+OSV, Mozilla, Zen, Apple) and rebuilt and redeployed merged `main`.
+
 ## Weekly review 9 November 2026
 
 OSV was queried for all 775 current pins (npm 263, Rust 482, versioned Swift 25).
