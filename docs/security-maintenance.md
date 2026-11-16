@@ -119,6 +119,26 @@ oneshot, cxx, memmap2, instant, number_prefix, basic-toml) are outside the
 build-only (agtree 4.3.0 still pins it). No new Mozilla, Zen or RustSec items; both
 default devices run iOS/iPadOS 27.2 (24B119), covering the 27.2 WebKit fixes.
 
+## Weekly review 16 November 2026
+
+OSV was queried for 805 pins (npm 263, shipped and App Services source-lock Rust
+crates, versioned Swift 25), with GitHub advisories for npm, Rust, Swift and Actions,
+RustSec, MFSA 2026-124 to 129, Zen 1.24.2b, Apple and NVD. No new advisory applies to
+shipped code.
+
+| Finding | Component | Classification |
+| --- | --- | --- |
+| CVE-2026-121842, CVE-2026-121843, CVE-2026-121841 (NVD now 7.3) | Firefox for iOS 160 | Fixed in fork (see the 10 November backports); installed on both default devices on 16 November. |
+| CVE-2026-124854 and others, [MFSA 2026-125](https://www.mozilla.org/en-US/security/advisories/mfsa2026-125/) to 129 (High, CVSS 8.8) | Firefox 160, ESR 153.7/115.45, Thunderbird | Not applicable: Gecko only. |
+| [RUSTSEC-2026-0463](https://rustsec.org/advisories/RUSTSEC-2026-0463.html), RUSTSEC-2026-0473 to 0479 | `openssl` 0.10.72 in the App Services source lock (fixed in 0.10.80) | Not applicable: outside the `megazord_ios` runtime graph. |
+| [RUSTSEC-2026-0486](https://rustsec.org/advisories/RUSTSEC-2026-0486.html) (unsound) | `rustix` 0.36.7 shipped, 0.37.11 source lock | Not applicable: only 1.0.0 to 1.1.5 are affected. |
+| [CVE-2026-113970](https://github.com/advisories/GHSA-rjw6-fgjr-4cxr) (CVSS 3.1 8.8, `AV:A`) | iOS Bluetooth (device OS, not WebKit) | Fixed in iOS/iPadOS 27.2.1; both default devices run 27.2 (24B119). Update the devices. 27.2.1 has no WebKit fixes. |
+| Node 24.22.3 security release (CVE-2026-123863 to 123874, CVE-2026-126051, High) | Local build Node v24.13.1 | Build-only, applies: mostly HTTP/2 and TLS server bugs. CI's `node-version: '24'` resolves to the fixed release; update local Node. |
+
+The Down cmark backports and SQLite 3.54.1 replacement still verify; Down has had
+no upstream release and SQLite 3.54.1 is current. `zod` 3.24.4 remains build-only
+and unfixed (agtree still requires zod 3).
+
 ## Weekly review 9 November 2026
 
 OSV was queried for all 775 current pins (npm 263, Rust 482, versioned Swift 25).
